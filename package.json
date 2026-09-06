@@ -1,0 +1,25 @@
+{
+  "name": "session-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Per-session Chrome profiles with sticky proxy + fingerprint",
+  "main": "src/manager.js",
+  "bin": {
+    "session-manager": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "selfcheck": "node src/index.js selfcheck"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.10.1",
+    "chalk": "^4.1.2",
+    "cli-table3": "^0.6.5",
+    "ghost-cursor": "^1.4.1",
+    "ora": "^5.4.1",
+    "puppeteer-real-browser": "^1.4.4"
+  }
+}

@@ -1,0 +1,25 @@
+node_modules/
+*.tmp
+
+# session data — keep folder names, not profiles / cookies / store
+/data/*
+!/data/.gitkeep
+!/data/profiles/
+/data/profiles/*
+!/data/profiles/.gitkeep
+!/data/cookies/
+/data/cookies/*
+!/data/cookies/.gitkeep
+
+# generated sheets (include proxies)
+/updates/*
+!/updates/.gitkeep
+
+# dumps — keep folder names, not proxy / fingerprint / account data
+/resources/AccountFile.csv
+/resources/proxies/*
+!/resources/proxies/.gitkeep
+/resources/fpts/*
+!/resources/fpts/.gitkeep
+/resources/updates/*
+!/resources/updates/.gitkeep
