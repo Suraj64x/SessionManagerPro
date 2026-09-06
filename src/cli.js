@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const chalk = require("chalk");
 const ora = require("ora");
 const Table = require("cli-table3");
@@ -10,9 +12,22 @@ const {
   openSession,
   saveSessionPatch,
   syncSheetEdits,
+  nextSessionIds,
 } = require("./manager");
 const { openSessionCsv } = require("./sheet");
 const { splash, mint, mute, ink, dim, rule } = require("./splash");
+
+function logUpdate(id, status, reason) {
+  try {
+    const updatesDir = path.join(__dirname, "..", "updates");
+    if (!fs.existsSync(updatesDir)) fs.mkdirSync(updatesDir, { recursive: true });
+    const logFile = path.join(updatesDir, "session_status.log");
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logFile, `[${timestamp}] ${id} : ${status} : ${reason}\n`);
+  } catch (err) {}
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const live = new Map();
 const queue = [];
@@ -41,9 +56,9 @@ function notice(msg, color = mint) {
 
 function banner() {
   console.log();
-  console.log(`  ${mint.bold("SessionManagerPro")}  ${mute(`v${require("../package.json").version}`)}`);
+  console.log(`  ${mint.bold("Session Manager Pro")}  ${mute(`v${require("../package.json").version}`)}`);
   console.log(
-    `  ${mute(`${parseCsvAccounts().length} names`)}   ${mute(`${listSessions().length} saved`)}   ${mint(`${live.size}/${threadLimit} threads`)}   ${mute(`${queue.length} queued`)}`,
+    `  ${dim("Names:")} ${ink(parseCsvAccounts().length)}   ${dim("Saved:")} ${ink(listSessions().length)}   ${dim("Live:")} ${mint(`${live.size}/${threadLimit}`)}   ${dim("Queued:")} ${ink(queue.length)}`
   );
   console.log(rule());
   console.log();
@@ -112,11 +127,19 @@ function watchHandle(handle) {
   }
   handle.browser.once("disconnected", () => {
     live.delete(handle.id);
-    const status = handle.closedByUser || !handle.error ? "success" : "error";
-    const reason = handle.closedByUser
-      ? "closed by user"
-      : handle.error || "closed by user";
+    let status, reason;
+    if (handle.closedByUser) {
+      status = "success";
+      reason = "closed by user";
+    } else if (handle.error) {
+      status = "error";
+      reason = handle.error;
+    } else {
+      status = "success";
+      reason = "finished / auto closed";
+    }
     markResult(handle.id, status, reason);
+    logUpdate(handle.id, status, reason);
     if (status === "error") {
       console.log(chalk.red(`  error  ${handle.id}  ${reason}`));
     } else {
@@ -150,6 +173,9 @@ async function fillPool() {
       const name = queue.shift();
       if (!name || live.has(name)) continue;
       jobs.push(startOne(name));
+      if (live.size + jobs.length < threadLimit && queue.length) {
+        await sleep(1000);
+      }
     }
     await Promise.all(jobs);
   } finally {
@@ -206,6 +232,22 @@ async function launchCustom() {
     notice("No names entered");
     return;
   }
+  await launch(names);
+}
+
+async function launchAuto() {
+  const { input, number } = await prompts();
+  const prefix = await input({
+    message: mint("Profile prefix") + dim("  (e.g., custom)"),
+    default: "session",
+  });
+  const count = await number({
+    message: mint("How many threads to generate?"),
+    default: 1,
+    min: 1,
+    required: true,
+  });
+  const names = nextSessionIds(count, prefix.trim() || "session");
   await launch(names);
 }
 
@@ -357,6 +399,7 @@ async function loop() {
       choices: [
         new Separator(rule("launch")),
         { name: button("Custom name", true), value: "custom" },
+        { name: button("Auto-generate names"), value: "auto" },
         { name: button("From account names"), value: "names" },
         { name: button("Open saved sessions"), value: "saved", disabled: listSessions().length ? false : "none" },
         new Separator(rule("sessions")),
@@ -371,6 +414,7 @@ async function loop() {
     });
 
     if (action === "custom") await launchCustom();
+    else if (action === "auto") await launchAuto();
     else if (action === "names") await launchFromNames();
     else if (action === "saved") await openSaved();
     else if (action === "view") await viewSessions();

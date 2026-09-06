@@ -1,10 +1,10 @@
 const chalk = require("chalk");
 const { version } = require("../package.json");
 
-const mint = chalk.hex("#7dffc3");
-const mute = chalk.hex("#6f6860");
-const ink = chalk.white;
-const dim = chalk.hex("#8a847c");
+const mint = chalk.hex("#06b6d4"); // Cyan
+const mute = chalk.hex("#475569"); // Slate
+const ink = chalk.hex("#f8fafc"); // White
+const dim = chalk.hex("#94a3b8"); // Light slate
 
 function strip(s) {
   return String(s).replace(/\x1b\[[0-9;]*m/g, "");
@@ -16,17 +16,12 @@ function padVisible(line, width) {
 }
 
 const ART = [
-  "            .:-=++++=-:.            ",
-  "        :=*%@@@@@@@@@@@@%*=:        ",
-  "     .+%@@@@@*=-:..:-=*%@@@@@+:     ",
-  "    +@@@@@+.            .+@@@@@+    ",
-  "   *@@@@+      .SM.       =@@@@#   ",
-  "   @@@@%                   %@@@@   ",
-  "   #@@@@=      ----       +@@@@#   ",
-  "    +@@@@@=.            .+@@@@@+    ",
-  "     :+@@@@@@*=-::::-=*%@@@@@+:     ",
-  "        :=*%@@@@@@@@@@@@%*=:        ",
-  "            .:-=++++=-:.            ",
+  "   ███████╗███╗   ███╗   ",
+  "   ██╔════╝████╗ ████║   ",
+  "   ███████╗██╔████╔██║   ",
+  "   ╚════██║██║╚██╔╝██║   ",
+  "   ███████║██║ ╚═╝ ██║   ",
+  "   ╚══════╝╚═╝     ╚═╝   ",
 ];
 
 function columns(left, right, gap = 6) {
@@ -44,32 +39,30 @@ function columns(left, right, gap = 6) {
 function splash({ names = 0, saved = 0, open = 0, threads = 5, queued = 0 } = {}) {
   const right = [
     "",
-    mint.bold("SessionManagerPro"),
-    ink("Persistent Chromium sessions"),
+    mint.bold("Session Manager Pro"),
+    ink("Multi-threaded Chromium Orchestrator"),
     mute(`v${version}`),
     "",
-    mute("--------------------------------"),
-    "",
-    ink("Get started"),
-    mint("> ") + ink("Custom name"),
-    ink("  From account names"),
-    ink("  Open saved sessions"),
-    ink("  View saved sessions"),
-    "",
-    mute("view all commands in the menu"),
-    "",
-    mute(`${names} names   ${saved} saved   ${open}/${threads} threads   ${queued} queued`),
+    mute("╭────────────────────────────────╮"),
+    mute("│ ") + ink("Status") + mute("                         │"),
+    mute("├────────────────────────────────┤"),
+    mute("│ ") + dim("Names:    ") + ink(names.toString().padEnd(19)) + mute("│"),
+    mute("│ ") + dim("Saved:    ") + ink(saved.toString().padEnd(19)) + mute("│"),
+    mute("│ ") + dim("Threads:  ") + mint(`${open}/${threads}`.padEnd(19)) + mute("│"),
+    mute("│ ") + dim("Queued:   ") + ink(queued.toString().padEnd(19)) + mute("│"),
+    mute("╰────────────────────────────────╯"),
   ];
   console.log();
-  for (const line of columns(ART.map((l) => ink(l)), right)) {
+  for (const line of columns(ART.map((l) => mint(l)), right)) {
     console.log(line);
   }
   console.log();
 }
 
 function rule(label = "") {
-  if (!label) return mute("  --------------------------------");
-  return mute(`  -- ${label} ${"-".repeat(Math.max(4, 24 - label.length))}`);
+  if (!label) return mute("  ────────────────────────────────────────");
+  const dashCount = Math.max(2, 38 - strip(label).length);
+  return mute(`  ── `) + ink.bold(label.toUpperCase()) + mute(` ${"─".repeat(dashCount)}`);
 }
 
 module.exports = { splash, mint, mute, ink, dim, rule, strip };
