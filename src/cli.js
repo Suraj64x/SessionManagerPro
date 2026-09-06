@@ -12,6 +12,7 @@ const {
   syncSheetEdits,
 } = require("./manager");
 const { openSessionCsv } = require("./sheet");
+const { splash, mint, mute, ink, dim, rule } = require("./splash");
 
 const live = new Map();
 const queue = [];
@@ -20,93 +21,42 @@ let launchUrl;
 let filling = false;
 let stopping = false;
 
-function strip(s) {
-  return String(s).replace(/\x1b\[[0-9;]*m/g, "");
+function printBlock(text) {
+  for (const line of String(text).split("\n")) console.log(`  ${line}`);
 }
 
-function termW() {
-  return process.stdout.columns || 80;
-}
-
-function center(line, w = termW()) {
-  const pad = Math.max(0, Math.floor((w - strip(line).length) / 2));
-  return " ".repeat(pad) + line;
-}
-
-function printCentered(text) {
-  for (const line of String(text).split("\n")) console.log(center(line));
-}
-
-function boxLines(lines, color = chalk.cyan, width = 52) {
-  const inner = width - 2;
-  const fit = (line) => {
-    const vis = strip(line).length;
-    const pad = Math.max(0, inner - vis);
-    const left = Math.floor(pad / 2);
-    return " ".repeat(left) + line + " ".repeat(pad - left);
-  };
-  return [
-    color("╔" + "═".repeat(inner) + "╗"),
-    ...lines.map((line) => color("║") + fit(line) + color("║")),
-    color("╚" + "═".repeat(inner) + "╝"),
-  ];
-}
-
-function bar(label, color = chalk.gray, width = 52) {
-  const tag = ` ${label} `;
-  const side = Math.max(3, Math.floor((width - strip(tag).length) / 2));
-  return color("─".repeat(side) + tag + "─".repeat(side));
-}
-
-function button(label, color = chalk.cyan) {
-  const text = `  ${label.padEnd(24)}`;
-  return color("│") + color.bold(text) + color("│");
+function button(label, accent = false) {
+  return accent ? mint("> ") + ink(label) : ink("  " + label);
 }
 
 function proxyLabel(p) {
   return `${p.host}:${p.port}`;
 }
 
-function notice(msg, color = chalk.yellow) {
-  printCentered("");
-  printCentered(boxLines([color.bold(msg)], color, 48).join("\n"));
-  printCentered("");
+function notice(msg, color = mint) {
+  console.log();
+  console.log(`  ${color(msg)}`);
+  console.log();
 }
 
 function banner() {
-  const names = parseCsvAccounts().length;
-  const saved = listSessions().length;
-  const stats =
-    chalk.magenta.bold(`${names} names`) +
-    chalk.gray("   ·   ") +
-    chalk.cyan.bold(`${saved} saved`) +
-    chalk.gray("   ·   ") +
-    chalk.green.bold(`${live.size}/${threadLimit} threads`) +
-    chalk.gray("   ·   ") +
-    chalk.yellow.bold(`${queue.length} queued`);
-  printCentered("");
-  printCentered(
-    boxLines(
-      [
-        chalk.white.bold("SESSION MANAGER"),
-        chalk.gray("sticky proxy  ·  fingerprint  ·  profile"),
-        stats,
-      ],
-      chalk.cyan,
-      58,
-    ).join("\n"),
+  console.log();
+  console.log(`  ${mint.bold("SessionManagerPro")}  ${mute(`v${require("../package.json").version}`)}`);
+  console.log(
+    `  ${mute(`${parseCsvAccounts().length} names`)}   ${mute(`${listSessions().length} saved`)}   ${mint(`${live.size}/${threadLimit} threads`)}   ${mute(`${queue.length} queued`)}`,
   );
-  printCentered("");
+  console.log(rule());
+  console.log();
 }
 
 function sessionTable(rows) {
   const table = new Table({
     head: [
-      chalk.blue.bold("Name"),
-      chalk.green.bold("Result"),
-      chalk.yellow.bold("Proxy"),
-      chalk.magenta.bold("Chrome"),
-      chalk.white.bold("Reason"),
+      mint.bold("Name"),
+      mint.bold("Result"),
+      ink.bold("Proxy"),
+      ink.bold("Chrome"),
+      mute("Reason"),
     ],
     style: { head: [], border: ["gray"] },
     wordWrap: true,
@@ -183,7 +133,7 @@ async function startOne(name) {
     await markResult(name, "running", "");
     watchHandle(handle);
     live.set(name, handle);
-    console.log(chalk.cyan(`  opened  ${name}  ${live.size}/${threadLimit} live  ${queue.length} queued`));
+    console.log(mint(`  opened  ${name}  ${live.size}/${threadLimit} live  ${queue.length} queued`));
   } catch (err) {
     const reason = err.message || String(err);
     await markResult(name, "error", reason);
@@ -216,14 +166,14 @@ async function launch(names) {
   }
   const { number, input } = await prompts();
   threadLimit = await number({
-    message: chalk.cyan("Thread count") + chalk.dim("  (max open at once)"),
+    message: mint("Thread count") + dim("  (max open at once)"),
     default: Math.min(names.length, threadLimit, 5),
     min: 1,
     max: Math.max(names.length, 1),
     required: true,
   });
   const url = await input({
-    message: chalk.cyan("Open URL") + chalk.dim("  (blank = last tabs)"),
+    message: mint("Open URL") + dim("  (blank = last tabs)"),
     default: "",
   });
   launchUrl = url.trim() || undefined;
@@ -243,8 +193,8 @@ async function launchCustom() {
     const line = await input({
       message:
         names.length === 0
-          ? chalk.cyan("Name 1")
-          : chalk.cyan(`Name ${names.length + 1}`) + chalk.dim("  (blank to finish)"),
+          ? mint("Name 1")
+          : mint(`Name ${names.length + 1}`) + dim("  (blank to finish)"),
       required: names.length === 0,
       default: "",
     });
@@ -267,7 +217,7 @@ async function launchFromNames() {
   }
   const { checkbox, select } = await prompts();
   const mode = await select({
-    message: chalk.cyan("Account names"),
+    message: mint("Account names"),
     choices: [
       { name: `Pick names  ${chalk.dim(`(${names.length})`)}`, value: "pick" },
       { name: "Use all names", value: "all" },
@@ -277,7 +227,7 @@ async function launchFromNames() {
     mode === "all"
       ? names
       : await checkbox({
-          message: chalk.cyan("Select names") + chalk.dim("  (space, a = all)"),
+          message: mint("Select names") + dim("  (space, a = all)"),
           required: true,
           pageSize: 14,
           choices: names.map((name) => {
@@ -286,7 +236,7 @@ async function launchFromNames() {
             const tag = open
               ? chalk.green("open")
               : saved
-                ? chalk.cyan("saved")
+                ? mint("saved")
                 : chalk.dim("new");
             return { name: `${name}  ${tag}`, value: name, disabled: open ? "already open" : false };
           }),
@@ -302,7 +252,7 @@ async function openSaved() {
   }
   const { checkbox } = await prompts();
   const names = await checkbox({
-    message: chalk.cyan("Saved sessions") + chalk.dim("  (space, a = all)"),
+    message: mint("Saved sessions") + dim("  (space, a = all)"),
     required: true,
     pageSize: 14,
     choices: rows.map((s) => ({
@@ -319,21 +269,15 @@ async function viewSessions() {
     notice("No saved sessions yet");
     return;
   }
-  printCentered(sessionTable(rows));
-  printCentered("");
+  printBlock(sessionTable(rows));
+  console.log();
 }
 
 async function editCsv() {
   const { input } = await prompts();
   openSessionCsv();
-  printCentered(
-    boxLines(
-      [chalk.yellow.bold("CSV opened"), chalk.dim("Edit, save, then press enter")],
-      chalk.yellow,
-      48,
-    ).join("\n"),
-  );
-  await input({ message: chalk.cyan("Press enter to sync") });
+  notice("CSV opened — edit, save, then press enter", mute);
+  await input({ message: mint("Press enter to sync") });
   const sync = await syncSheetEdits();
   notice(`Synced  +${sync.created} new  ~${sync.updated} updated`, chalk.green);
 }
@@ -345,7 +289,7 @@ async function closeRunning() {
   }
   const { checkbox } = await prompts();
   const ids = await checkbox({
-    message: chalk.cyan("Close which?"),
+    message: mint("Close which?"),
     required: true,
     choices: [...live.keys()].map((id) => ({ name: id, value: id })),
   });
@@ -367,7 +311,7 @@ async function removeSessions() {
   }
   const { checkbox, confirm } = await prompts();
   const ids = await checkbox({
-    message: chalk.cyan("Delete which?"),
+    message: mint("Delete which?"),
     required: true,
     pageSize: 14,
     choices: rows.map((s) => ({ name: s.email || s.id, value: s.id })),
@@ -408,21 +352,21 @@ async function loop() {
     }
     banner();
     const action = await select({
-      message: chalk.white.bold("select an option"),
+      message: ink("Get started"),
       pageSize: 16,
       choices: [
-        new Separator(bar("LAUNCH", chalk.cyan, 30)),
-        { name: button("Custom name", chalk.cyan), value: "custom" },
-        { name: button("From account names", chalk.cyan), value: "names" },
-        { name: button("Open saved sessions", chalk.cyan), value: "saved", disabled: listSessions().length ? false : "none" },
-        new Separator(bar("SESSIONS", chalk.blue, 30)),
-        { name: button("View saved sessions", chalk.blue), value: "view" },
-        { name: button("Edit sessions CSV", chalk.yellow), value: "csv" },
-        new Separator(bar("MANAGE", chalk.magenta, 30)),
-        { name: button("Close open browsers", chalk.magenta), value: "close", disabled: live.size ? false : "none open" },
-        { name: button("Delete sessions", chalk.red), value: "delete", disabled: listSessions().length ? false : "none" },
-        new Separator(bar("", chalk.gray, 30)),
-        { name: button("Exit", chalk.white), value: "exit" },
+        new Separator(rule("launch")),
+        { name: button("Custom name", true), value: "custom" },
+        { name: button("From account names"), value: "names" },
+        { name: button("Open saved sessions"), value: "saved", disabled: listSessions().length ? false : "none" },
+        new Separator(rule("sessions")),
+        { name: button("View saved sessions"), value: "view" },
+        { name: button("Edit sessions CSV"), value: "csv" },
+        new Separator(rule("manage")),
+        { name: button("Close open browsers"), value: "close", disabled: live.size ? false : "none open" },
+        { name: button("Delete sessions"), value: "delete", disabled: listSessions().length ? false : "none" },
+        new Separator(rule()),
+        { name: button("Exit"), value: "exit" },
       ],
     });
 
@@ -439,6 +383,13 @@ async function loop() {
 
 async function run() {
   try {
+    splash({
+      names: parseCsvAccounts().length,
+      saved: listSessions().length,
+      open: live.size,
+      threads: threadLimit,
+      queued: queue.length,
+    });
     await loop();
   } catch (err) {
     if (err?.name === "ExitPromptError") {
