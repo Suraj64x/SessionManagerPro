@@ -1,4 +1,5 @@
 node_modules/
+frontend/node_modules/
 *.tmp
 
 # session data — keep folder names, not profiles / cookies / store
@@ -10,6 +11,7 @@ node_modules/
 !/data/cookies/
 /data/cookies/*
 !/data/cookies/.gitkeep
+/data/webview_profile/*
 
 # generated sheets (include proxies)
 /updates/*
@@ -21,5 +23,3 @@ node_modules/
 !/resources/proxies/.gitkeep
 /resources/fpts/*
 !/resources/fpts/.gitkeep
-/resources/updates/*
-!/resources/updates/.gitkeep

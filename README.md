@@ -1,14 +1,15 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/SessionManagerPro-v1.0.0-7dffc3?style=for-the-badge&labelColor=111111" alt="SessionManagerPro" />
-  <img src="https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white&labelColor=111111" alt="Node.js" />
-  <img src="https://img.shields.io/badge/Chromium-profiles-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white&labelColor=111111" alt="Chromium" />
+  <img src="https://img.shields.io/badge/SessionManagerPro-v1.1.0-06b6d4?style=for-the-badge&labelColor=111111" alt="SessionManagerPro" />
+  <img src="https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=black&labelColor=111111" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-Ready-3178c6?style=for-the-badge&logo=typescript&logoColor=white&labelColor=111111" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Chromium-Anti--Detect-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white&labelColor=111111" alt="Chromium" />
 </p>
 
 <h1 align="center">SessionManagerPro</h1>
 
 <p align="center">
-  <b>Persistent Chromium sessions.</b><br />
-  One name. One profile. One proxy. One fingerprint.
+  <b>Multi-Threaded Anti-Detect Chromium Orchestrator & Professional GUI Panel</b><br />
+  One Profile ↔ One Sticky Proxy ↔ One Hardware Fingerprint ↔ Dual Cookie Persistence
 </p>
 
 <p align="center">
@@ -17,110 +18,77 @@
 
 ---
 
-## Overview
+## ⚡ Launching the Software
 
-SessionManagerPro is a Node.js CLI that opens real Chrome windows, one per named session. Close a window and the next name in the queue starts, so a fixed thread count stays live.
+### Option A: Native Desktop App (Edge WebView)
+Double-click:
+👉 **`SessionManagerPro.exe`**
+*(Or run `npm.cmd run app` from the terminal)*
 
-| Kept per name | What stays |
+This opens SessionManagerPro in a native, frameless Edge WebView2 desktop window without any browser tabs or URL bars, functioning like a standalone software suite. It silently manages the local backend server and cleanly shuts it down when you close the window.
+
+### Option B: Web Browser Mode
+```powershell
+npm.cmd start
+```
+Starts the backend and opens the dashboard in your default browser at `http://localhost:3001`.
+
+### Option C: Terminal CLI
+```powershell
+npm.cmd run cli
+```
+Runs the legacy interactive terminal menu.
+
+---
+
+## 📁 Enterprise Architecture
+
+```text
+Session manager/
+├── SessionManagerPro.exe      # Native Windows Desktop Executable (Edge WebView)
+├── backend/                   # Backend Server & Session Engine
+│   ├── src/
+│   │   ├── server.js          # Express REST API & WebSocket server
+│   │   ├── orchestrator.js    # Thread pool, queue, and live event broadcaster
+│   │   ├── manager.js         # Session persistence & Puppeteer lifecycle
+│   │   ├── fingerprint.js     # WebGL1/WebGL2 & CDP fingerprint spoofing (.json & .json.gz)
+│   │   ├── cli.js             # Terminal CLI interface
+│   │   ├── sheet.js           # CSV/HTML reporting & two-way sync
+│   │   ├── splash.js          # ASCII branding banner
+│   │   └── index.js           # CLI router & selfcheck script
+│   └── package.json           # Backend package configuration
+├── frontend/                  # React 19 + TypeScript + Vite GUI Panel
+│   ├── src/
+│   │   ├── components/        # Header, ThreadCard, SessionTable, Modals, Proxy/Fpt panels
+│   │   ├── api.ts             # REST & WebSocket client
+│   │   ├── types.ts           # TypeScript models
+│   │   ├── index.css          # Dark cyber/slate design system
+│   │   ├── App.tsx            # Main dashboard component
+│   │   └── main.tsx           # React bootstrap
+│   ├── dist/                  # Production static assets served by backend
+│   ├── vite.config.ts         # Vite bundler configuration
+│   └── tsconfig.json          # TypeScript compiler options
+├── launcher/
+│   └── SessionManagerPro.cs   # C# native launcher source
+├── scripts/
+│   └── build-exe.ps1          # Automated compilation script using csc.exe
+├── data/                      # Local session storage (profiles, cookies, sessions.json)
+├── resources/                 # Input resources (proxies, fingerprints, AccountFile.csv)
+├── updates/                   # Output sheets (sessions.csv, sessions.html, session_status.log)
+└── package.json               # Master orchestration scripts
+```
+
+---
+
+## 🛠️ Master Scripts
+
+| Command | Action |
 |---|---|
-| **Profile** | Cookies, logins, last tabs |
-| **Proxy** | One unused line from `resources/proxies/*.txt` |
-| **Fingerprint** | One unused file from `resources/fpts/` |
-| **Sheet** | Status written to `updates/sessions.csv` and `updates/sessions.html` |
-
----
-
-## Quick start
-
-```bash
-npm install
-npm start
-```
-
-Requires **Node.js 18+** and a local **Chrome / Chromium** install.
-
-On launch you get a splash, then a menu:
-
-```
-Get started
-> Custom name
-  From account names
-  Open saved sessions
-  View saved sessions
-```
-
----
-
-## Menu
-
-### Launch
-
-| Command | What it does |
-|---|---|
-| **Custom name** | Enter names line by line. Blank line finishes. |
-| **From account names** | Use the Email column in `resources/AccountFile.csv`. |
-| **Open saved sessions** | Reopen existing profiles — same proxy, fingerprint, and cookies. |
-
-Then set **thread count** (max windows at once) and an optional **start URL**.
-
-When you close a window it is marked **success** and the next queued name opens. If Chrome exits on its own it is marked **error** with a reason, then the next name opens.
-
-### Sessions
-
-| Command | What it does |
-|---|---|
-| **View saved sessions** | Table of name, result, proxy, Chrome version |
-| **Edit sessions CSV** | Opens `updates/sessions.csv`. Save, then press Enter to sync. |
-
-### Manage
-
-Close running windows, delete a profile, or exit.
-
----
-
-## Resources
-
-These folders ship empty. Put your own files in — they are not committed.
-
-```
-resources/
-├── proxies/          one line = one proxy
-│                     http://user:pass@host:port
-├── fpts/             one file = one fingerprint
-│                     .json or .json.gz
-└── AccountFile.csv   optional names (Email column)
-```
-
----
-
-## Layout
-
-```
-src/                 CLI and session engine
-resources/           proxies, fingerprints, account names
-data/profiles/       Chrome user-data dirs
-data/cookies/        cookie backups
-updates/             sessions.csv · sessions.html
-```
-
----
-
-## Library
-
-```js
-const { openSession, ensureSessions } = require("./src/manager");
-
-await ensureSessions(["shop1"]);
-const { page, cursor, close } = await openSession("shop1", {
-  url: "https://example.com",
-});
-
-await cursor.click("button");
-await close();
-```
-
----
-
-<p align="center">
-  <sub>Runtime data stays local. Proxies, fingerprints, profiles, and sheets are gitignored.</sub>
-</p>
+| `SessionManagerPro.exe` | Launches the native Windows desktop app window |
+| `npm.cmd start` | Starts backend and opens dashboard in default browser (`http://localhost:3001`) |
+| `npm.cmd run app` | Launches `SessionManagerPro.exe` |
+| `npm.cmd run cli` | Runs the interactive terminal CLI |
+| `npm.cmd run build` | Compiles both the React frontend and `SessionManagerPro.exe` |
+| `npm.cmd run build:ui` | Rebuilds only the React frontend |
+| `npm.cmd run build:exe` | Recompiles `SessionManagerPro.exe` using `csc.exe` |
+| `npm.cmd run selfcheck` | Runs automated verification check |

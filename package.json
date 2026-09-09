@@ -3,13 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "description": "Per-session Chrome profiles with sticky proxy + fingerprint",
-  "main": "src/manager.js",
+  "main": "backend/src/manager.js",
   "bin": {
-    "session-manager": "src/index.js"
+    "session-manager": "backend/src/index.js"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "selfcheck": "node src/index.js selfcheck"
+    "start": "node backend/src/server.js",
+    "gui": "node backend/src/server.js",
+    "app": "SessionManagerPro.exe",
+    "cli": "node backend/src/index.js",
+    "build:ui": "npm --prefix frontend run build",
+    "build:exe": "powershell -ExecutionPolicy Bypass -File scripts/build-exe.ps1",
+    "build": "npm run build:ui && npm run build:exe",
+    "selfcheck": "node backend/src/index.js selfcheck"
   },
   "engines": {
     "node": ">=18"
@@ -18,8 +24,11 @@
     "@inquirer/prompts": "^7.10.1",
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.5",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
     "ghost-cursor": "^1.4.1",
     "ora": "^5.4.1",
-    "puppeteer-real-browser": "^1.4.4"
+    "puppeteer-real-browser": "^1.4.4",
+    "ws": "^8.18.0"
   }
 }
