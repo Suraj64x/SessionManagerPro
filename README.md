@@ -59,10 +59,11 @@ Session manager/
 │   └── package.json           # Backend package configuration
 ├── frontend/                  # React 19 + TypeScript + Vite GUI Panel
 │   ├── src/
-│   │   ├── components/        # Header, ThreadCard, SessionTable, Modals, Proxy/Fpt panels
+│   │   ├── components/        # Rail, RunBar, SessionTable, Proxy/Fpt panels, ConsoleDock, Modals
+│   │   ├── ui.tsx             # Modal, toasts, confirm, pager, shared hooks
 │   │   ├── api.ts             # REST & WebSocket client
 │   │   ├── types.ts           # TypeScript models
-│   │   ├── index.css          # Dark cyber/slate design system
+│   │   ├── index.css          # Design tokens & component primitives
 │   │   ├── App.tsx            # Main dashboard component
 │   │   └── main.tsx           # React bootstrap
 │   ├── dist/                  # Production static assets served by backend

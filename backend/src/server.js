@@ -120,8 +120,17 @@ app.post("/api/sessions/create", async (req, res) => {
     if (!name || !name.trim()) {
       return res.status(400).json({ error: "Session name is required" });
     }
+    // The proxy pool is published as URLs; the record needs the parsed parts.
+    let parsedProxy = proxy;
+    if (typeof proxy === "string" && proxy.trim()) {
+      try {
+        parsedProxy = parseProxy(proxy);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+    }
     const session = await createSessionRecord(name.trim(), {
-      proxy,
+      proxy: parsedProxy,
       fingerprintFile,
     });
     orchestrator.log("info", "SESSION", `Created profile: ${session.id}`, session.id);
@@ -178,13 +187,79 @@ app.post("/api/sessions/stop", async (req, res) => {
   }
 });
 
-// Update session notes or proxy
+// Update session notes, proxy, or fingerprint.
+// Proxy and fingerprint are geo-linked, so either change rebuilds the fingerprint.
 app.patch("/api/sessions/:id", async (req, res) => {
   try {
-    const updated = await saveSessionPatch(req.params.id, req.body);
+    const current = getSession(req.params.id);
+    if (!current) return res.status(404).json({ error: "Session not found" });
+
+    // Whitelist. A raw spread of req.body would let any caller rewrite userDataDir,
+    // which DELETE later hands straight to fs.rmSync({ recursive: true }).
+    const patch = {};
+    if (typeof req.body.notes === "string") patch.notes = req.body.notes;
+
+    if (req.body.proxy !== undefined) {
+      const raw = req.body.proxy;
+      const p = typeof raw === "string" ? parseProxy(raw) : raw;
+      if (!p || !p.host || !Number.isInteger(Number(p.port)) || Number(p.port) < 1) {
+        return res.status(400).json({ error: "proxy needs a host and port, and cannot be cleared" });
+      }
+      patch.proxy = {
+        host: p.host,
+        port: Number(p.port),
+        username: p.username || "",
+        password: p.password || "",
+      };
+    }
+
+    if (req.body.fingerprintFile !== undefined) {
+      const { listFptFiles } = require("./fingerprint");
+      if (!req.body.fingerprintFile || !listFptFiles().includes(req.body.fingerprintFile)) {
+        return res.status(400).json({ error: "unknown fingerprint file" });
+      }
+      patch.fingerprintFile = req.body.fingerprintFile;
+    }
+
+    // Another profile may have claimed the resource since this editor was opened.
+    const others = listSessions().filter((s) => s.id !== current.id);
+    const taken = (msg) => res.status(409).json({ error: msg });
+    if (
+      patch.proxy &&
+      others.some((s) => s.proxy && `${s.proxy.host}:${s.proxy.port}` === `${patch.proxy.host}:${patch.proxy.port}`)
+    ) {
+      return taken("that proxy is already bound to another profile");
+    }
+    if (patch.fingerprintFile && others.some((s) => s.fingerprintFile === patch.fingerprintFile)) {
+      return taken("that fingerprint is already bound to another profile");
+    }
+
+    const proxyChanged =
+      Boolean(patch.proxy) &&
+      (patch.proxy.host !== current.proxy?.host || patch.proxy.port !== Number(current.proxy?.port));
+    const fptChanged = Boolean(patch.fingerprintFile) && patch.fingerprintFile !== current.fingerprintFile;
+    const nextFile = patch.fingerprintFile || current.fingerprintFile;
+    const nextProxy = patch.proxy || current.proxy;
+
+    if (nextFile && (proxyChanged || fptChanged)) {
+      const { buildFingerprint } = require("./fingerprint");
+      const rebuilt = await buildFingerprint(nextFile, nextProxy);
+      // Same proxy means the same region: keep the geo already resolved rather than
+      // letting a flaky lookup silently move the profile's timezone.
+      patch.fingerprint = proxyChanged
+        ? rebuilt
+        : {
+            ...rebuilt,
+            timezone: current.fingerprint?.timezone || rebuilt.timezone,
+            locale: current.fingerprint?.locale || rebuilt.locale,
+          };
+      orchestrator.log("info", "FINGERPRINT", `Rebuilt fingerprint for ${current.id}`, current.id);
+    }
+
+    const updated = await saveSessionPatch(req.params.id, patch);
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -262,6 +337,19 @@ app.get("/api/logs", (req, res) => {
 
 // Thread pool status
 app.get("/api/pool", (req, res) => {
+  res.json(orchestrator.getStatus());
+});
+
+// Change the concurrency cap live; raising it promotes queued sessions at once.
+app.post("/api/pool", (req, res) => {
+  const threads = Number(req.body.threads);
+  if (!Number.isInteger(threads) || threads < 1 || threads > 50) {
+    return res.status(400).json({ error: "threads must be an integer between 1 and 50" });
+  }
+  orchestrator.threadLimit = threads;
+  orchestrator.log("info", "QUEUE", `Thread cap set to ${threads}`);
+  orchestrator.emit("pool:update", orchestrator.getStatus());
+  if (orchestrator.queue.length) orchestrator.fillPool();
   res.json(orchestrator.getStatus());
 });
 

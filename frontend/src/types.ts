@@ -38,6 +38,8 @@ export interface SessionRecord {
   tabs: string[];
   cookieCount: number;
   notes?: string;
+  tags?: string[];
+  color?: string;
   createdAt: string;
   updatedAt: string;
   lastOpenedAt?: string;

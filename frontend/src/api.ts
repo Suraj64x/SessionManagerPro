@@ -9,7 +9,7 @@ import type {
 
 const BASE = '';
 
-export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(BASE + url, {
     ...options,
     headers: {
@@ -32,7 +32,6 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
 export const api = {
   getStats: () => fetchJson<SystemStats>('/api/stats'),
   getSessions: () => fetchJson<SessionRecord[]>('/api/sessions'),
-  getSession: (id: string) => fetchJson<SessionRecord>(`/api/sessions/${encodeURIComponent(id)}`),
   createSession: (data: { name: string; proxy?: any; fingerprintFile?: string }) =>
     fetchJson<SessionRecord>('/api/sessions/create', {
       method: 'POST',
@@ -86,4 +85,9 @@ export const api = {
   syncSheet: () => fetchJson<{ updated: number; created: number }>('/api/sheet/sync', { method: 'POST' }),
   getLogs: (limit = 100) => fetchJson<LogEntry[]>(`/api/logs?limit=${limit}`),
   getPool: () => fetchJson<PoolStatus>('/api/pool'),
+  setThreadLimit: (threads: number) =>
+    fetchJson<PoolStatus>('/api/pool', {
+      method: 'POST',
+      body: JSON.stringify({ threads }),
+    }),
 };

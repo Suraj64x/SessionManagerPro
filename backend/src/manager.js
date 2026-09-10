@@ -89,13 +89,20 @@ function writeStore(store) {
 }
 
 function parseProxy(line) {
-  const u = new URL(line.trim());
-  return {
+  const u = new URL(String(line).trim());
+  const proxy = {
     host: u.hostname,
     port: Number(u.port),
     username: decodeURIComponent(u.username),
     password: decodeURIComponent(u.password),
   };
+  // "host:port" with no scheme does NOT throw — URL reads it as protocol + path and
+  // hands back an empty host. That object is truthy, so it would be stored as a real
+  // proxy and then dropped at launch, opening the browser on the operator's own IP.
+  if (!proxy.host || !Number.isInteger(proxy.port) || proxy.port < 1 || proxy.port > 65535) {
+    throw new Error(`invalid proxy "${line}" — expected scheme://user:pass@host:port`);
+  }
+  return proxy;
 }
 
 function loadProxies() {
@@ -111,7 +118,17 @@ function loadProxies() {
       if (trimmed && !trimmed.startsWith("#")) lines.push(trimmed);
     }
   }
-  return [...new Set(lines)].map(parseProxy);
+  // One malformed line must not take down the whole resources endpoint, which the
+  // panel would otherwise render as an authoritative "no proxies configured".
+  const proxies = [];
+  for (const line of new Set(lines)) {
+    try {
+      proxies.push(parseProxy(line));
+    } catch (err) {
+      console.warn(`[proxies] skipping unusable line: ${err.message}`);
+    }
+  }
+  return proxies;
 }
 
 function proxyKey(p) {
@@ -277,7 +294,7 @@ function saveSessionPatch(id, patch) {
 async function attachPage(page, record) {
   if (page.__smAttached) return page;
   page.__smAttached = true;
-  if (record.proxy.username) {
+  if (record.proxy?.username) {
     await page.authenticate({
       username: record.proxy.username,
       password: record.proxy.password,
@@ -347,7 +364,7 @@ async function openSession(id, opts = {}) {
     customConfig: {
       userDataDir: record.userDataDir,
     },
-    proxy: record.proxy,
+    proxy: record.proxy?.host ? record.proxy : undefined,
     turnstile: false,
     connectOption: {
       defaultViewport: {

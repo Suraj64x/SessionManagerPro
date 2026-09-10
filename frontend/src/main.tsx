@@ -3,23 +3,24 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { App } from './App.tsx'
 
-// Suppress default browser right-click menu for professional desktop look
+// Suppress the browser right-click menu on chrome only. Inputs keep paste, and
+// any selected text or data cell keeps copy — the panel is full of ids to lift.
 window.addEventListener('contextmenu', (e) => {
-  // Allow right-click only inside inputs/textareas for paste
   const target = e.target as HTMLElement | null;
-  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-    return;
-  }
+  const isField = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+  const isData = !!target?.closest('td, .mono, .code-block, .log, .tag');
+  if (isField || isData || !window.getSelection()?.isCollapsed) return;
   e.preventDefault();
 });
 
-// Suppress browser reload, print, view-source, and navigation shortcuts
+// Suppress browser reload, print, view-source, and navigation shortcuts.
+// Ctrl+F is deliberately left through — the app maps it to its own search.
 window.addEventListener('keydown', (e) => {
   if (
     e.key === 'F5' ||
     e.key === 'F11' ||
     e.key === 'F12' ||
-    (e.ctrlKey && ['r', 'R', 'p', 'P', 's', 'S', 'u', 'U', 'f', 'F', 'h', 'H'].includes(e.key)) ||
+    (e.ctrlKey && ['r', 'R', 'p', 'P', 's', 'S', 'u', 'U', 'h', 'H'].includes(e.key)) ||
     (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'))
   ) {
     e.preventDefault();

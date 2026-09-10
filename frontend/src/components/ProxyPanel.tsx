@@ -1,355 +1,269 @@
-import React, { useState, useMemo } from 'react';
-import {
-  Globe,
-  Loader2,
-  Copy,
-  Check,
-  Zap,
-  Search,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  ShieldCheck,
-} from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { Check, Globe, Loader2, Search, Zap } from 'lucide-react';
 import type { ProxyResource } from '../types';
 import { api } from '../api';
+import { CopyButton, Empty, Pager, Toolbar, usePaged } from '../ui';
 
-interface ProxyPanelProps {
+type Probe = { status: 'testing' | 'ok' | 'fail'; latency?: number; ip?: string; error?: string };
+type Filter = 'all' | 'free' | 'bound';
+type SortMode = 'default' | 'latency';
+
+interface Props {
   proxies: ProxyResource[];
+  query: string;
+  onQuery: (q: string) => void;
+  searchRef: React.RefObject<HTMLInputElement | null>;
+  pageSize: number;
+  onPageSize: (n: number) => void;
+  onToast: (kind: 'success' | 'error' | 'info', text: string) => void;
   onRefresh: () => void;
 }
 
-export const ProxyPanel: React.FC<ProxyPanelProps> = ({ proxies, onRefresh }) => {
-  const [testResults, setTestResults] = useState<
-    Record<string, { status: 'testing' | 'success' | 'failed'; latency?: number; ip?: string; error?: string }>
-  >({});
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [testingAll, setTestingAll] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'assigned'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+export const ProxyPanel: React.FC<Props> = ({
+  proxies,
+  query,
+  onQuery,
+  searchRef,
+  pageSize,
+  onPageSize,
+  onToast,
+  onRefresh,
+}) => {
+  const [probes, setProbes] = useState<Record<string, Probe>>({});
+  const [filter, setFilter] = useState<Filter>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('default');
+  const [busy, setBusy] = useState(false);
 
-  const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 1500);
-  };
+  const free = proxies.filter((p) => !p.isAssigned).length;
 
-  const testOne = async (p: ProxyResource) => {
-    setTestResults((prev) => ({
-      ...prev,
-      [p.key]: { status: 'testing' },
-    }));
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = proxies.filter((p) => {
+      if (filter === 'free' && p.isAssigned) return false;
+      if (filter === 'bound' && !p.isAssigned) return false;
+      if (!q) return true;
+      return [p.host, String(p.port), p.username, p.assignedTo]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+    if (sortMode === 'latency') {
+      return [...filtered].sort((a, b) => {
+        const la = probes[a.key]?.latency ?? Infinity;
+        const lb = probes[b.key]?.latency ?? Infinity;
+        return la - lb;
+      });
+    }
+    return filtered;
+  }, [proxies, query, filter, sortMode, probes]);
 
+  const paged = usePaged(rows, pageSize, `${filter}|${query}`);
+
+  const probe = async (p: ProxyResource) => {
+    setProbes((s) => ({ ...s, [p.key]: { status: 'testing' } }));
     try {
       const res = await api.testProxy(p);
-      if (res.ok) {
-        setTestResults((prev) => ({
-          ...prev,
-          [p.key]: { status: 'success', latency: res.latency, ip: res.ip },
-        }));
-      } else {
-        setTestResults((prev) => ({
-          ...prev,
-          [p.key]: { status: 'failed', error: res.error || 'Connection failed' },
-        }));
-      }
-    } catch (err: any) {
-      setTestResults((prev) => ({
-        ...prev,
-        [p.key]: { status: 'failed', error: err.message },
+      setProbes((s) => ({
+        ...s,
+        [p.key]: res.ok
+          ? { status: 'ok', latency: res.latency, ip: res.ip }
+          : { status: 'fail', error: res.error || 'No route' },
       }));
+      return res.ok;
+    } catch (err: any) {
+      setProbes((s) => ({ ...s, [p.key]: { status: 'fail', error: err.message } }));
+      return false;
     }
   };
 
-  const testAll = async () => {
-    setTestingAll(true);
-    for (const p of paginated) {
-      await testOne(p);
+  // Tests everything the current filter shows, not just the visible page. Each probe
+  // can block for 6s, so run them in small batches and let the operator stop the run.
+  const cancelled = useRef(false);
+  const probeAll = async () => {
+    if (busy) {
+      cancelled.current = true;
+      return;
     }
-    setTestingAll(false);
-  };
-
-  // Filtered
-  const filtered = useMemo(() => {
-    return proxies.filter((p) => {
-      const matchesSearch =
-        !searchTerm.trim() ||
-        p.host.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(p.port).includes(searchTerm) ||
-        (p.username && p.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (p.assignedTo && p.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()));
-
-      if (!matchesSearch) return false;
-
-      if (filterStatus === 'available') return !p.isAssigned;
-      if (filterStatus === 'assigned') return p.isAssigned;
-      return true;
-    });
-  }, [proxies, searchTerm, filterStatus]);
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const validPage = Math.min(currentPage, totalPages);
-  const startIndex = (validPage - 1) * pageSize;
-  const paginated = filtered.slice(startIndex, startIndex + pageSize);
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
+    cancelled.current = false;
+    setBusy(true);
+    let ok = 0;
+    let done = 0;
+    for (let i = 0; i < rows.length && !cancelled.current; i += 8) {
+      const batch = rows.slice(i, i + 8);
+      const results = await Promise.all(batch.map(probe));
+      ok += results.filter(Boolean).length;
+      done += batch.length;
     }
+    setBusy(false);
+    const stopped = cancelled.current;
+    onToast(
+      !stopped && ok === rows.length ? 'success' : 'info',
+      `${ok}/${done} reachable${stopped ? ' (stopped)' : ''}`
+    );
   };
 
   return (
-    <div>
-      {/* Top Toolbar */}
-      <div className="toolbar">
-        <div className="toolbar-left">
-          <div>
-            <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text-main)' }}>
-              Proxy Pool & Health Auditor
-            </h2>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              {proxies.length} proxies loaded from resources/proxies/
-            </span>
-          </div>
+    <>
+      <Toolbar title="Proxies" count={proxies.length}>
+        <div className="seg" role="group" aria-label="Filter proxies">
+          <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
+            All
+          </button>
+          <button aria-pressed={filter === 'free'} onClick={() => setFilter('free')}>
+            Free {free}
+          </button>
+          <button aria-pressed={filter === 'bound'} onClick={() => setFilter('bound')}>
+            Bound
+          </button>
         </div>
 
-        <div className="toolbar-right">
-          {/* Quick Filter Pills */}
-          <div className="filter-group">
-            <button
-              className={`filter-btn ${filterStatus === 'all' ? 'active' : ''}`}
-              onClick={() => { setFilterStatus('all'); setCurrentPage(1); }}
-            >
-              All ({proxies.length})
-            </button>
-            <button
-              className={`filter-btn ${filterStatus === 'available' ? 'active' : ''}`}
-              onClick={() => { setFilterStatus('available'); setCurrentPage(1); }}
-            >
-              Available ({proxies.filter((p) => !p.isAssigned).length})
-            </button>
-            <button
-              className={`filter-btn ${filterStatus === 'assigned' ? 'active' : ''}`}
-              onClick={() => { setFilterStatus('assigned'); setCurrentPage(1); }}
-            >
-              Assigned
-            </button>
-          </div>
+        <div className="field search">
+          <Search size={14} />
+          <input
+            ref={searchRef}
+            type="search"
+            className="input"
+            placeholder="Search  /"
+            value={query}
+            onChange={(e) => onQuery(e.target.value)}
+            aria-label="Search proxies"
+          />
+        </div>
 
-          {/* Search Box */}
-          <div className="search-wrapper">
-            <Search size={14} className="search-icon" />
-            <input
-              type="search"
-              className="search-input"
-              placeholder="Filter by IP, port, or user..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+        <button className="btn" onClick={probeAll} disabled={!rows.length}>
+          {busy ? <Loader2 size={13} className="spin" /> : <Zap size={13} strokeWidth={1.9} />}
+          {busy ? 'Stop' : `Test ${rows.length}`}
+        </button>
+
+        <div className="seg" role="group" aria-label="Sort">
+          <button aria-pressed={sortMode === 'default'} onClick={() => setSortMode('default')}>Default</button>
+          <button aria-pressed={sortMode === 'latency'} onClick={() => setSortMode('latency')}>By latency</button>
+        </div>
+      </Toolbar>
+
+      <div className="view">
+        {!proxies.length ? (
+          <div className="card">
+            <Empty
+              icon={<Globe size={30} strokeWidth={1.5} />}
+              text="No proxies in resources/proxies/"
+              action={
+                <button className="btn" onClick={onRefresh}>
+                  Rescan
+                </button>
+              }
             />
           </div>
-
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={testAll}
-            disabled={testingAll || proxies.length === 0}
-          >
-            {testingAll ? <Loader2 size={13} className="spin" /> : <Zap size={13} color="var(--mint)" />}
-            {testingAll ? 'Testing Page...' : 'Test Visible'}
-          </button>
-
-          <button className="btn btn-secondary btn-sm" onClick={onRefresh} title="Reload Proxies">
-            <RefreshCw size={13} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {proxies.length === 0 ? (
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '48px',
-            textAlign: 'center',
-          }}
-        >
-          <Globe size={40} color="var(--text-muted)" style={{ marginBottom: '14px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
-            No Proxies Found
-          </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '480px', margin: '0 auto 16px' }}>
-            Place your proxy list in <code>resources/proxies/proxies.txt</code> with one proxy per line.
-          </p>
-          <button className="btn btn-secondary" onClick={onRefresh}>
-            Scan Resources
-          </button>
-        </div>
-      ) : (
-        <div>
-          <div className="resource-grid">
-            {paginated.map((p) => {
-              const result = testResults[p.key];
-
-              return (
-                <div key={p.key} className="resource-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div
-                        style={{
-                          width: '30px',
-                          height: '30px',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'rgba(34, 197, 94, 0.1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'var(--mint)',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                        }}
+        ) : (
+          <>
+            <div className="grid">
+              {paged.slice.map((p) => {
+                const r = probes[p.key];
+                return (
+                  <div key={p.key} className="tile">
+                    <div className="tile-head">
+                      <span
+                        className="mono"
+                        style={{ fontSize: 12.5, color: 'var(--txt)' }}
+                        title={`${p.host}:${p.port}`}
                       >
-                        <Globe size={16} />
-                      </div>
-                      <div>
-                        <div className="mono" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
-                          {p.host}:{p.port}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {p.username ? `Auth: ${p.username}` : 'Direct'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {p.isAssigned ? (
-                      <span className="badge badge-assigned" title={p.assignedTo || ''}>
-                        <span className="badge-dot" />
-                        Bound
+                        {p.host}:{p.port}
                       </span>
-                    ) : (
-                      <span className="badge badge-available">
-                        <span className="badge-dot" />
-                        Free
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    style={{
-                      background: 'rgba(0,0,0,0.2)',
-                      padding: '10px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>IP:</span>
-                      <strong className="mono" style={{ color: result?.ip ? 'var(--mint)' : 'var(--text-dim)' }}>
-                        {result?.ip || 'Untested'}
-                      </strong>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>Latency:</span>
-                      <strong style={{ color: result?.latency ? 'var(--mint)' : 'var(--text-dim)' }}>
-                        {result?.latency ? `${result.latency} ms` : '—'}
-                      </strong>
-                    </div>
-
-                    {result?.error && (
-                      <div style={{ color: 'var(--rose)', fontSize: '11px', marginTop: '2px' }}>
-                        Error: {result.error}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '4px' }}>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '3px 8px', fontSize: '11px' }}
-                      onClick={() => copyToClipboard(p.url, p.key)}
-                      title="Copy full proxy URL"
-                    >
-                      {copiedKey === p.key ? <Check size={11} color="var(--mint)" /> : <Copy size={11} />}
-                      {copiedKey === p.key ? 'Copied' : 'Copy'}
-                    </button>
-
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '3px 10px', fontSize: '11px' }}
-                      onClick={() => testOne(p)}
-                      disabled={result?.status === 'testing'}
-                    >
-                      {result?.status === 'testing' ? (
-                        <>
-                          <Loader2 size={11} className="spin" />
-                          Testing
-                        </>
+                      {p.isAssigned ? (
+                        <span className="badge">Bound</span>
                       ) : (
-                        'Ping Test'
+                        <span className="badge live">
+                          <span className="dot" />
+                          Free
+                        </span>
                       )}
-                    </button>
+                    </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {p.isAssigned && (
+                          <div className="tile-kv">
+                            <span>Session</span>
+                            <b title={p.assignedTo || ''}>{p.assignedTo}</b>
+                          </div>
+                        )}
+                        <div className="tile-kv">
+                          <span>Exit IP</span>
+                          <b style={{ color: r?.ip ? 'var(--accent)' : undefined }}>{r?.ip || '—'}</b>
+                        </div>
+                        <div className="tile-kv">
+                          <span>Latency</span>
+                          <b>{r?.latency ? (
+                            <span className={`latency-badge ${r.latency < 200 ? 'good' : r.latency < 600 ? 'medium' : 'slow'}`}>
+                              <span className="latency-dot" />
+                              {r.latency} ms
+                            </span>
+                          ) : r?.status === 'fail' ? (
+                            <span className="latency-badge slow">
+                              <span className="latency-dot" />
+                              Failed
+                            </span>
+                          ) : (
+                            <span className="latency-badge untested">
+                              <span className="latency-dot" />
+                              —
+                            </span>
+                          )}</b>
+                        </div>
+                        {r?.error && (
+                          <div className="tile-kv">
+                            <span>Error</span>
+                            <b style={{ color: 'var(--danger)' }}>{r.error}</b>
+                          </div>
+                        )}
+                      </div>
+
+                    <div className="tile-foot">
+                      <span className="sub" title={p.username || 'no auth'}>
+                        {p.username || 'no auth'}
+                      </span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <CopyButton value={p.url} label="Copy URL" />
+                        <button
+                          className="btn xs"
+                          onClick={() => probe(p)}
+                          disabled={r?.status === 'testing'}
+                        >
+                          {r?.status === 'testing' ? (
+                            <Loader2 size={11} className="spin" />
+                          ) : r?.status === 'ok' ? (
+                            <Check size={11} color="var(--accent)" strokeWidth={2.25} />
+                          ) : (
+                            <Zap size={11} strokeWidth={1.9} />
+                          )}
+                          Test
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Clean Pagination Bar */}
-          <div className="pagination-container" style={{ marginTop: '16px', borderRadius: 'var(--radius-md)' }}>
-            <div>
-              Showing <strong style={{ color: 'var(--text-main)' }}>{filtered.length ? startIndex + 1 : 0}</strong> to{' '}
-              <strong style={{ color: 'var(--text-main)' }}>{Math.min(startIndex + pageSize, filtered.length)}</strong> of{' '}
-              <strong style={{ color: 'var(--text-main)' }}>{filtered.length}</strong> proxies
+                );
+              })}
             </div>
 
-            <div className="pagination-controls">
-              <button
-                className="page-btn"
-                disabled={validPage <= 1}
-                onClick={() => handlePageChange(validPage - 1)}
-              >
-                <ChevronLeft size={14} />
-              </button>
-
-              <span style={{ padding: '0 8px', fontWeight: 600, color: 'var(--text-main)' }}>
-                Page {validPage} of {totalPages}
-              </span>
-
-              <button
-                className="page-btn"
-                disabled={validPage >= totalPages}
-                onClick={() => handlePageChange(validPage + 1)}
-              >
-                <ChevronRight size={14} />
-              </button>
-
-              <select
-                className="page-btn"
-                style={{ marginLeft: '10px', background: '#090d0b' }}
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-              >
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
-                <option value={100}>100 / page</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+            {rows.length === 0 ? (
+              <div className="card">
+                <Empty icon={<Search size={26} strokeWidth={1.5} />} text="Nothing matches." />
+              </div>
+            ) : (
+              <Pager
+                standalone
+                page={paged.page}
+                pages={paged.pages}
+                from={paged.from}
+                to={paged.to}
+                total={rows.length}
+                noun="proxies"
+                pageSize={pageSize}
+                onPage={paged.setPage}
+                onPageSize={onPageSize}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 };

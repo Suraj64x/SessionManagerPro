@@ -1,311 +1,470 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from './components/Header';
-import { ThreadCard } from './components/ThreadCard';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { CircleAlert } from 'lucide-react';
+import { Rail, type Tab } from './components/Rail';
+import { RunBar } from './components/RunBar';
 import { SessionTable } from './components/SessionTable';
 import { ProxyPanel } from './components/ProxyPanel';
 import { FingerprintPanel } from './components/FingerprintPanel';
-import { ConsoleDrawer } from './components/ConsoleDrawer';
-import { NewSessionModal } from './components/NewSessionModal';
-import { FingerprintModal } from './components/FingerprintModal';
-import { NeonCyberCursor } from './components/NeonCyberCursor';
+import { ConsoleDock } from './components/ConsoleDock';
+import { StatusBar } from './components/StatusBar';
+import { ProfileDrawer } from './components/ProfileDrawer';
+import { ShortcutHelper } from './components/ShortcutHelper';
+import { NewSessionModal, SessionModal, SpecsModal } from './components/Modals';
+import { UIProvider, useStored, useUI } from './ui';
 import { api } from './api';
 import type {
-  SessionRecord,
-  SystemStats,
-  PoolStatus,
-  ProxyResource,
   FingerprintResource,
   LogEntry,
+  PoolStatus,
+  ProxyResource,
+  SessionRecord,
 } from './types';
 
-export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'sessions' | 'proxies' | 'fingerprints' | 'logs'>('sessions');
+const LOG_BUFFER = 500;
+
+const Panel: React.FC = () => {
+  const { toast, confirm } = useUI();
+
+  const [tab, setTab] = useStored<Tab>('tab', 'sessions');
+  const [pageSize, setPageSize] = useStored<number>('pageSize', 25);
+  const [launchUrl, setLaunchUrl] = useStored<string>('url', '');
+  const [dock, setDock] = useStored<'closed' | 'normal' | 'tall'>('dock', 'closed');
+
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
-  const [stats, setStats] = useState<SystemStats | null>(null);
   const [pool, setPool] = useState<PoolStatus | null>(null);
   const [proxies, setProxies] = useState<ProxyResource[]>([]);
   const [fingerprints, setFingerprints] = useState<FingerprintResource[]>([]);
-  const [accounts, setAccounts] = useState<string[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
+  const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [threadLimit, setThreadLimit] = useState<number>(5);
-  const [launchUrl, setLaunchUrl] = useState<string>('');
-  const [isLaunching, setIsLaunching] = useState<boolean>(false);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [launching, setLaunching] = useState<string[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [isNewModalOpen, setIsNewModalOpen] = useState<boolean>(false);
-  const [inspectModal, setInspectModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    data?: any;
-  }>({ isOpen: false, title: '' });
+  // The orchestrator owns the concurrency cap; the stepper writes to it.
+  const threadLimit = pool?.threadLimit ?? 5;
 
-  // Initial load
+  const [newOpen, setNewOpen] = useState(false);
+  const [editing, setEditing] = useState<SessionRecord | null>(null);
+  const [specs, setSpecs] = useState<{ title: string; fp: any } | null>(null);
+  const [preview, setPreview] = useState<SessionRecord | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  /* ---------------- data ---------------- */
+
   const loadAll = useCallback(async () => {
-    try {
-      const [sessionsData, statsData, poolData, resData, logsData] = await Promise.all([
-        api.getSessions().catch(() => []),
-        api.getStats().catch(() => null),
-        api.getPool().catch(() => null),
-        api.getResources().catch(() => ({ proxies: [], fingerprints: [], accounts: [] })),
-        api.getLogs(60).catch(() => []),
-      ]);
+    const [s, p, res, lg] = await Promise.allSettled([
+      api.getSessions(),
+      api.getPool(),
+      api.getResources(),
+      api.getLogs(120),
+    ]);
 
-      setSessions(sessionsData);
-      setStats(statsData);
-      if (poolData) {
-        setPool(poolData);
-        setThreadLimit(poolData.threadLimit || 5);
-      }
-      setProxies(resData.proxies || []);
-      setFingerprints(resData.fingerprints || []);
-      setAccounts(resData.accounts || []);
-      setLogs(logsData);
-    } catch (err) {
-      console.error('Failed to load initial data:', err);
+    // A failed fetch is not an empty inventory. Say so rather than rendering
+    // "no proxies configured" over a 500.
+    const failed: string[] = [];
+    if (s.status === 'fulfilled') setSessions(s.value);
+    else failed.push('sessions');
+    if (p.status === 'fulfilled' && p.value) setPool(p.value);
+    if (res.status === 'fulfilled') {
+      setProxies(res.value.proxies || []);
+      setFingerprints(res.value.fingerprints || []);
+    } else {
+      failed.push('resources');
     }
-  }, []);
+    if (lg.status === 'fulfilled') setLogs(lg.value);
+
+    setLoadError(failed.length ? `Could not load ${failed.join(' and ')}` : null);
+    if (failed.length) toast('error', `Could not load ${failed.join(' and ')} — is the backend running?`);
+  }, [toast]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
-  // WebSocket for real-time live events and pool sync
+  // Live pool/log stream. Reconnects on drop; never re-subscribes on re-render.
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws`;
-
+    const url = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`;
     let ws: WebSocket | null = null;
-    let reconnectTimer: any = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+
+    const refreshSessions = () => api.getSessions().then(setSessions).catch(() => {});
 
     const connect = () => {
-      try {
-        ws = new WebSocket(wsUrl);
-
-        ws.onmessage = (event) => {
-          try {
-            const { type, data } = JSON.parse(event.data);
-            if (type === 'pool') {
-              setPool(data);
-              // Also refresh sessions to reflect live states
-              api.getSessions().then(setSessions).catch(() => {});
-            } else if (type === 'log') {
-              setLogs((prev) => [...prev.slice(-499), data]);
-            } else if (type === 'session') {
-              api.getSessions().then(setSessions).catch(() => {});
-              api.getStats().then(setStats).catch(() => {});
-            }
-          } catch (e) {}
-        };
-
-        ws.onclose = () => {
-          reconnectTimer = setTimeout(connect, 3000);
-        };
-      } catch (err) {
-        reconnectTimer = setTimeout(connect, 3000);
-      }
+      ws = new WebSocket(url);
+      ws.onopen = () => setConnected(true);
+      ws.onmessage = (e) => {
+        let msg: { type: string; data: any };
+        try {
+          msg = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        if (msg.type === 'pool') {
+          setPool(msg.data);
+          refreshSessions();
+        } else if (msg.type === 'log') {
+          setLogs((prev) => [...prev.slice(-(LOG_BUFFER - 1)), msg.data]);
+        } else if (msg.type === 'logs') {
+          // Reconnect backfill: merge, don't replace — the server only keeps 50.
+          setLogs((prev) => {
+            const seen = new Set(prev.map((l) => l.id));
+            return [...prev, ...((msg.data || []) as LogEntry[]).filter((l) => !seen.has(l.id))].slice(
+              -LOG_BUFFER
+            );
+          });
+        } else if (msg.type === 'session') {
+          refreshSessions();
+        }
+      };
+      ws.onclose = () => {
+        if (closed) return;
+        setConnected(false);
+        timer = setTimeout(connect, 3000);
+      };
+      ws.onerror = () => ws?.close();
     };
-
     connect();
 
     return () => {
-      if (ws) ws.close();
-      if (reconnectTimer) clearTimeout(reconnectTimer);
+      closed = true;
+      if (timer) clearTimeout(timer);
+      ws?.close();
     };
   }, []);
 
-  // Selection handlers
-  const handleToggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+  // Drop selections for profiles that no longer exist.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const alive = new Set(sessions.map((s) => s.id));
+      const next = prev.filter((id) => alive.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [sessions]);
+
+  // Search is per-view; switching views starts clean.
+  const [queriedTab, setQueriedTab] = useState(tab);
+  if (queriedTab !== tab) {
+    setQueriedTab(tab);
+    setQuery('');
+  }
+
+  /* ---------------- computed ---------------- */
+  const totalCookies = sessions.reduce((n, s) => n + (s.cookieCount || 0), 0);
+  const proxiesFree = proxies.filter((p) => !p.isAssigned).length;
+  const fpFree = fingerprints.filter((f) => !f.isAssigned && !f.error).length;
+
+  /* ---------------- actions ---------------- */
+
+  const launch = useCallback(
+    async (ids: string[]) => {
+      if (!ids.length) return;
+      setLaunching((prev) => [...new Set([...prev, ...ids])]);
+      try {
+        await api.launchSessions(ids, threadLimit, launchUrl);
+        toast('success', `Queued ${ids.length} profile${ids.length > 1 ? 's' : ''}`);
+      } catch (err: any) {
+        toast('error', err.message);
+      } finally {
+        setLaunching((prev) => prev.filter((id) => !ids.includes(id)));
+      }
+    },
+    [threadLimit, launchUrl, toast]
+  );
+
+  // Steps accumulate against the pending value, and a burst coalesces into one write.
+  const pendingLimit = useRef<number | null>(null);
+  const limitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stepThreadLimit = (delta: 1 | -1) => {
+    const next = Math.min(20, Math.max(1, (pendingLimit.current ?? threadLimit) + delta));
+    pendingLimit.current = next;
+    setPool((p) => (p ? { ...p, threadLimit: next } : p));
+
+    if (limitTimer.current) clearTimeout(limitTimer.current);
+    limitTimer.current = setTimeout(async () => {
+      pendingLimit.current = null;
+      try {
+        setPool(await api.setThreadLimit(next));
+      } catch (err: any) {
+        toast('error', err.message);
+        loadAll();
+      }
+    }, 300);
   };
 
-  const handleSelectAll = () => {
-    setSelectedIds(sessions.map((s) => s.id));
-  };
-
-  const handleClearSelection = () => {
-    setSelectedIds([]);
-  };
-
-  // Launch handlers
-  const handleLaunchOne = async (id: string) => {
-    setIsLaunching(true);
-    try {
-      await api.launchSessions([id], threadLimit, launchUrl);
-    } catch (err: any) {
-      alert(`Launch error: ${err.message}`);
-    } finally {
-      setIsLaunching(false);
-    }
-  };
-
-  const handleLaunchSelected = async () => {
-    if (!selectedIds.length) return;
-    setIsLaunching(true);
-    try {
-      await api.launchSessions(selectedIds, threadLimit, launchUrl);
-      setSelectedIds([]);
-    } catch (err: any) {
-      alert(`Launch error: ${err.message}`);
-    } finally {
-      setIsLaunching(false);
-    }
-  };
-
-  const handleStopOne = async (id: string) => {
+  const stop = async (id: string) => {
     try {
       await api.stopSession(id);
     } catch (err: any) {
-      alert(`Stop error: ${err.message}`);
+      toast('error', err.message);
     }
   };
 
-  const handleStopAll = async () => {
+  const stopAll = async () => {
+    if (!(await confirm({ title: 'Stop all windows?', body: 'Cookies are saved before closing.', confirmLabel: 'Stop all', danger: true })))
+      return;
     try {
       await api.stopAllSessions();
     } catch (err: any) {
-      alert(`Stop all error: ${err.message}`);
+      toast('error', err.message);
     }
   };
 
-  const handleDeleteOne = async (id: string) => {
-    if (!confirm(`Delete profile and cookies for ${id}?`)) return;
-    try {
-      await api.deleteSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      setSelectedIds((prev) => prev.filter((item) => item !== id));
-      loadAll();
-    } catch (err: any) {
-      alert(`Delete error: ${err.message}`);
-    }
+  const remove = async (ids: string[]) => {
+    const ok = await confirm({
+      title: ids.length > 1 ? `Delete ${ids.length} profiles?` : `Delete ${ids[0]}?`,
+      body: 'The Chrome profile directory and saved cookies are removed. This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    const results = await Promise.allSettled(ids.map((id) => api.deleteSession(id)));
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed) toast('error', `${failed} of ${ids.length} could not be deleted`);
+    else toast('success', `Deleted ${ids.length}`);
+    loadAll();
   };
 
-  // Creation handlers
-  const handleCreateSingle = async (name: string, proxy?: string, fingerprintFile?: string) => {
-    await api.createSession({ name, proxy, fingerprintFile });
+  const saveSession = async (id: string, patch: Record<string, unknown>) => {
+    if (Object.keys(patch).length) await api.patchSession(id, patch);
     await loadAll();
+    toast('success', 'Saved');
   };
 
-  const handleCreateBatch = async (count: number, prefix: string) => {
-    await api.autoGenerateSessions(count, prefix);
-    await loadAll();
-  };
-
-  const handleImportCsv = async (csvText: string) => {
-    await api.importAccounts(csvText);
-    await loadAll();
-  };
-
-  const handleSyncSheet = async () => {
+  const syncSheet = async () => {
     setIsSyncing(true);
     try {
-      const res = await api.syncSheet();
-      alert(`Synced with CSV! +${res.created} created, ~${res.updated} updated.`);
+      const r = await api.syncSheet();
+      toast('success', `Sheet synced — ${r.created} new, ${r.updated} updated`);
       await loadAll();
     } catch (err: any) {
-      alert(`Sync error: ${err.message}`);
+      toast('error', err.message);
     } finally {
       setIsSyncing(false);
     }
   };
 
+  /* ---------------- keyboard ---------------- */
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // A dialog owns the keyboard while it is up; the Modal handles its own Escape.
+      if (document.querySelector('.scrim') || document.querySelector('.shortcuts-overlay')) return;
+
+      const el = e.target as HTMLElement | null;
+      const typing = !!el?.closest('input, textarea, select');
+
+      if (e.key === '?' && !typing) {
+        e.preventDefault();
+        setShowShortcuts((v) => !v);
+        return;
+      }
+
+      if (e.key === 'Escape' && !typing) {
+        setSelectedIds([]);
+        setPreview(null);
+        return;
+      }
+      if (!typing && (e.key === '/' || ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')))) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
+      if (!typing && (e.ctrlKey || e.metaKey) && e.key === 'Enter' && selectedIds.length) {
+        e.preventDefault();
+        launch(selectedIds);
+      }
+      if (!typing && (e.ctrlKey || e.metaKey) && e.key === 'a' && tab === 'sessions') {
+        e.preventDefault();
+        setSelectedIds(sessions.map((s) => s.id));
+      }
+      if (!typing && e.key === 'Delete' && selectedIds.length) {
+        e.preventDefault();
+        remove(selectedIds);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedIds, launch, sessions, tab]);
+
+  /* ---------------- render ---------------- */
+
   return (
-    <div className="app-container">
-      <NeonCyberCursor />
-      <Header
-        stats={stats}
-        pool={pool}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+    <div className="app">
+      <Rail
+        tab={tab}
+        onTab={setTab}
+        liveCount={pool?.activeCount ?? 0}
         onRefresh={loadAll}
-        onSyncSheet={handleSyncSheet}
+        onSync={syncSheet}
         isSyncing={isSyncing}
+        proxiesCount={proxies.length}
+        fpCount={fingerprints.length}
       />
 
-      <main className="main-content">
-        <ThreadCard
-          pool={pool}
-          threadLimit={threadLimit}
-          setThreadLimit={setThreadLimit}
-          launchUrl={launchUrl}
-          setLaunchUrl={setLaunchUrl}
-          onStopAll={handleStopAll}
-          onLaunchSelected={handleLaunchSelected}
-          selectedCount={selectedIds.length}
-          isLaunching={isLaunching}
-        />
+      <main className="main">
+        {loadError && (
+          <div className="banner" role="alert">
+            <CircleAlert size={14} strokeWidth={2} />
+            {loadError}
+            <button className="btn xs" onClick={loadAll}>
+              Retry
+            </button>
+          </div>
+        )}
 
-        {activeTab === 'sessions' && (
+        {tab === 'sessions' && (
           <SessionTable
             sessions={sessions}
+            query={query}
+            onQuery={setQuery}
+            searchRef={searchRef}
             selectedIds={selectedIds}
-            onToggleSelect={handleToggleSelect}
-            onSelectAll={handleSelectAll}
-            onClearSelection={handleClearSelection}
-            onLaunchOne={handleLaunchOne}
-            onStopOne={handleStopOne}
-            onDeleteOne={handleDeleteOne}
-            onInspectFingerprint={(s) =>
-              setInspectModal({
-                isOpen: true,
-                title: `Fingerprint Specs: ${s.email || s.id}`,
-                data: s.fingerprint,
-              })
+            onSelect={setSelectedIds}
+            launchingIds={launching}
+            onLaunch={(id) => launch([id])}
+            onStop={stop}
+            onDelete={remove}
+            onEdit={setEditing}
+            onNew={() => setNewOpen(true)}
+            onPreview={setPreview}
+            pageSize={pageSize}
+            onPageSize={setPageSize}
+            runbar={
+              <>
+                <StatusBar
+                  totalProfiles={sessions.length}
+                  activeCount={pool?.activeCount ?? 0}
+                  queuedCount={pool?.queuedCount ?? 0}
+                  totalCookies={totalCookies}
+                  proxiesFree={proxiesFree}
+                  proxiesTotal={proxies.length}
+                  fpFree={fpFree}
+                  fpTotal={fingerprints.length}
+                />
+                <RunBar
+                  pool={pool}
+                  threadLimit={threadLimit}
+                  onThreadStep={stepThreadLimit}
+                  url={launchUrl}
+                  onUrl={setLaunchUrl}
+                  selectedCount={selectedIds.length}
+                  isLaunching={launching.length > 0}
+                  onLaunch={() => launch(selectedIds)}
+                  onStopAll={stopAll}
+                />
+              </>
             }
-            onOpenNewModal={() => setIsNewModalOpen(true)}
           />
         )}
 
-        {activeTab === 'proxies' && (
-          <ProxyPanel proxies={proxies} onRefresh={loadAll} />
+        {tab === 'proxies' && (
+          <ProxyPanel
+            proxies={proxies}
+            query={query}
+            onQuery={setQuery}
+            searchRef={searchRef}
+            pageSize={pageSize}
+            onPageSize={setPageSize}
+            onToast={toast}
+            onRefresh={loadAll}
+          />
         )}
 
-        {activeTab === 'fingerprints' && (
+        {tab === 'fingerprints' && (
           <FingerprintPanel
             fingerprints={fingerprints}
+            query={query}
+            onQuery={setQuery}
+            searchRef={searchRef}
+            onInspect={(f) => setSpecs({ title: f.file, fp: f })}
             onRefresh={loadAll}
-            onSelectInspect={(f) =>
-              setInspectModal({
-                isOpen: true,
-                title: `Fingerprint: ${f.file}`,
-                data: f,
-              })
-            }
+            pageSize={pageSize}
+            onPageSize={setPageSize}
           />
         )}
 
-        {activeTab === 'logs' && (
-          <ConsoleDrawer logs={logs} onClear={() => setLogs([])} />
-        )}
-
-        {/* Live log footer console if on Sessions tab */}
-        {activeTab === 'sessions' && (
-          <ConsoleDrawer logs={logs} onClear={() => setLogs([])} />
-        )}
+        <ConsoleDock
+          logs={logs}
+          onClear={() => setLogs([])}
+          size={dock}
+          onSize={setDock}
+          connected={connected}
+        />
       </main>
 
-      <NewSessionModal
-        isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
-        onCreateSingle={handleCreateSingle}
-        onCreateBatch={handleCreateBatch}
-        onImportCsv={handleImportCsv}
-        availableProxies={proxies}
-        availableFingerprints={fingerprints}
-      />
+      {newOpen && (
+        <NewSessionModal
+          onClose={() => setNewOpen(false)}
+          proxies={proxies}
+          fingerprints={fingerprints}
+          onCreateSingle={async (name, proxy, fpt) => {
+            try {
+              await api.createSession({ name, proxy, fingerprintFile: fpt });
+              toast('success', `Created ${name}`);
+            } finally {
+              await loadAll();
+            }
+          }}
+          onCreateBatch={async (count, prefix) => {
+            try {
+              const r = await api.autoGenerateSessions(count, prefix);
+              toast('success', `Created ${r.created.length} profiles`);
+            } finally {
+              await loadAll();
+            }
+          }}
+          onImportCsv={async (csv) => {
+            try {
+              const r = await api.importAccounts(csv);
+              toast('success', `Imported ${r.count} accounts`);
+            } finally {
+              await loadAll();
+            }
+          }}
+        />
+      )}
 
-      <FingerprintModal
-        isOpen={inspectModal.isOpen}
-        onClose={() => setInspectModal({ isOpen: false, title: '' })}
-        title={inspectModal.title}
-        fingerprint={inspectModal.data}
-      />
+      {editing && (
+        <SessionModal
+          session={editing}
+          proxies={proxies}
+          fingerprints={fingerprints}
+          onClose={() => setEditing(null)}
+          onSave={(patch) => saveSession(editing.id, patch)}
+        />
+      )}
+
+      {specs && <SpecsModal title={specs.title} fp={specs.fp} onClose={() => setSpecs(null)} />}
+
+      {preview && (
+        <ProfileDrawer
+          session={preview}
+          onClose={() => setPreview(null)}
+          onLaunch={() => { launch([preview.id]); setPreview(null); }}
+          onStop={() => { stop(preview.id); setPreview(null); }}
+          onEdit={() => { setEditing(preview); setPreview(null); }}
+          onDelete={() => { remove([preview.id]); setPreview(null); }}
+          launching={launching.includes(preview.id)}
+        />
+      )}
+
+      {showShortcuts && <ShortcutHelper onClose={() => setShowShortcuts(false)} />}
     </div>
   );
 };
+
+export const App: React.FC = () => (
+  <UIProvider>
+    <Panel />
+  </UIProvider>
+);
 
 export default App;
