@@ -4,10 +4,10 @@
 **Multi-Threaded Anti-Detect Chromium Orchestrator & GUI Panel**
 
 <p align="center">
-  <img src="https://img.shields.io/badge/SessionManagerPro-v1.1.0-000000?style=for-the-badge&logo=codeigniter&logoColor=white" alt="SessionManagerPro" />
-  <img src="https://img.shields.io/badge/React-19-000000?style=for-the-badge&logo=react&logoColor=61dafb" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-Ready-000000?style=for-the-badge&logo=typescript&logoColor=3178c6" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Chromium-Anti--Detect-000000?style=for-the-badge&logo=googlechrome&logoColor=4285F4" alt="Chromium" />
+  <img src="https://img.shields.io/badge/SessionManagerPro-v1.1.0-8B5CF6?style=for-the-badge&logo=codeigniter&logoColor=white&labelColor=111111" alt="SessionManagerPro" />
+  <img src="https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react&logoColor=black&labelColor=111111" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-Ready-3178c6?style=for-the-badge&logo=typescript&logoColor=white&labelColor=111111" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Chromium-Anti--Detect-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white&labelColor=111111" alt="Chromium" />
 </p>
 
 One Profile • One Sticky Proxy • One Hardware Fingerprint • Dual Cookie Persistence
