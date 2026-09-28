@@ -40,7 +40,7 @@ function splash({ names = 0, saved = 0, open = 0, threads = 5, queued = 0 } = {}
   const right = [
     "",
     mint.bold("Session Manager Pro"),
-    ink("Multi-threaded Chromium Orchestrator"),
+    ink("InvisiblePlaywright Stealth Orchestrator"),
     mute(`v${version}`),
     "",
     mute("╭────────────────────────────────╮"),

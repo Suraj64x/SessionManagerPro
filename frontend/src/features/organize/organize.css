@@ -1,0 +1,120 @@
+/* organize: statuses, folders, inline editing, column settings. Loads after index.css. */
+
+/* ---------------- status chip ---------------- */
+
+.status-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 22px; padding: 0 8px 0 7px; border-radius: 99px;
+  background: color-mix(in srgb, var(--c) 16%, transparent); color: color-mix(in srgb, var(--c) 72%, #fff);
+  font-size: 11.5px; font-weight: 600; white-space: nowrap; text-align: left; transition: background var(--t), opacity var(--t);
+}
+:root[data-theme='light'] .status-chip { color: color-mix(in srgb, var(--c) 55%, #000); }
+.status-chip .dot { flex: none; width: 7px; height: 7px; border-radius: 99px; background: var(--c); }
+.status-chip > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+button.status-chip:hover { background: color-mix(in srgb, var(--c) 26%, transparent); }
+.status-chip.none { background: transparent; color: var(--txt-3); box-shadow: inset 0 0 0 1px var(--line-2); padding: 0 8px; }
+button.status-chip.none:hover { background: var(--fill); color: var(--txt-2); }
+.status-chip[aria-busy='true'] { opacity: 0.5; }
+.status-dot { flex: none; width: 8px; height: 8px; border-radius: 99px; background: var(--c); }
+.menu button[aria-pressed='true'] { color: var(--txt); }
+.menu .tick { flex: none; width: 14px; display: inline-grid; place-items: center; color: var(--accent-txt); }
+
+/* ---------------- table ---------------- */
+
+/* Tighter than .tbl: nine default columns plus actions must fit 1280 px without scrolling. */
+.org-table th, .org-table td { padding: 0 10px; }
+.org-table td { height: 48px; white-space: nowrap; }
+.org-table :is(.name, .sub) { max-width: 22ch; }
+.org-table.compact td { height: 36px; padding-top: 0; padding-bottom: 0; }
+.org-table.compact th { height: 34px; }
+.org-table th.gear { padding-right: 8px; }
+.org-table th.gear > .inline { justify-content: flex-end; }
+.org-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* The name column gives way first: it shrinks with the table and long emails ellipsize
+   (full name in the title), so the table never scrolls sideways at 1280 px. */
+.org-table td:has(> .org-name) { width: 30%; max-width: 0; }
+.org-name > .who { flex: 1 1 auto; min-width: 0; }
+.org-name .who > span { flex: 1 1 auto; min-width: 0; }
+.org-name .name { max-width: 100%; }
+/* The name and its engine mark share one line; the name is what gives way when space runs out. */
+.name-row { display: flex; align-items: center; min-width: 0; }
+.name-row > .name { flex: 0 1 auto; }
+.org-name .who { gap: 8px; }
+.org-name .badge { flex: none; }
+.pin { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--txt-3); }
+.pin:hover { background: var(--fill-2); color: var(--txt); }
+.pin[aria-pressed='true'] { color: var(--warn); opacity: 1; }
+.org-tags { display: flex; align-items: center; gap: 4px; max-width: 260px; min-height: 26px; overflow: hidden; cursor: pointer; }
+.org-tags .chip { flex: none; cursor: pointer; }
+.org-tags .chip:hover { background: var(--accent-soft); color: var(--accent-txt); }
+.org-tags .add { flex: none; color: var(--txt-3); font-size: 12px; height: 22px; padding: 0 4px; border-radius: 6px; }
+.org-tags .add:hover { color: var(--txt); background: var(--fill-2); }
+.org-notes { display: block; max-width: 22ch; height: 26px; padding: 0 6px; margin-left: -6px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--txt-2); }
+.org-notes:hover { background: var(--fill-2); color: var(--txt); }
+.org-notes .dim { color: var(--txt-3); }
+.org-table .chip.folder { cursor: pointer; }
+.org-table .chip.folder:hover { background: var(--accent-soft); color: var(--accent-txt); }
+.org-table tbody tr[draggable='true'] { cursor: grab; }
+.org-table tbody tr[draggable='true'] :is(button, input) { cursor: pointer; }
+
+/* ---------------- popovers ---------------- */
+
+.org-pop {
+  position: fixed; z-index: 60; min-width: 200px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--raised); border: 1px solid var(--line-2); border-radius: var(--r-lg); box-shadow: var(--shadow); animation: rise 0.12s var(--ease);
+}
+.org-pop .hint { font-size: 11.5px; }
+.org-pop textarea.input { min-height: 72px; }
+.org-pop .inline.end { justify-content: flex-end; }
+
+/* ---------------- filter menu ---------------- */
+
+.org-filter { max-height: min(calc(var(--vh) * 0.7), 520px); overflow: auto; width: 240px; }
+.org-filter select.input { height: 30px; margin: 2px 0 4px; font-size: 12.5px; }
+.org-filter-count { margin-left: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 700; display: inline-grid; place-items: center; }
+.org-facets { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.org-facets .chip { height: 24px; }
+.org-facets .chip svg:first-child { color: var(--txt-3); }
+
+/* ---------------- folder strip ---------------- */
+
+.org-strip { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.org-tab { position: relative; display: inline-flex; align-items: center; border-radius: 99px; transition: background var(--t), box-shadow var(--t); }
+.org-tab > [role='tab'] { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 99px; color: var(--txt-2); font-size: 12.5px; font-weight: 600; white-space: nowrap; max-width: 220px; }
+.org-tab > [role='tab'] > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.org-tab > [role='tab']:hover { background: var(--fill); color: var(--txt); }
+.org-tab > [role='tab'][aria-selected='true'] { background: var(--fill-2); color: var(--txt); }
+.org-tab .n { color: var(--txt-3); font-weight: 500; font-size: 11.5px; }
+.org-tab.has-menu > [role='tab'] { padding-right: 26px; }
+.org-tab .org-tab-more { position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; opacity: 0; }
+.org-tab:hover .org-tab-more, .org-tab:focus-within .org-tab-more, .org-tab-more:focus-visible { opacity: 1; }
+.org-tab.drop { box-shadow: 0 0 0 2px var(--accent-txt); background: var(--accent-soft); }
+.org-tab.drop > [role='tab'] { color: var(--accent-txt); }
+.org-strip .add { color: var(--txt-3); }
+.org-strip .vr { width: 1px; height: 18px; background: var(--line-2); margin: 0 4px; }
+
+/* ---------------- column settings ---------------- */
+
+.org-cols { display: flex; flex-direction: column; gap: 2px; width: 240px; }
+.org-col { display: flex; align-items: center; gap: 6px; height: 30px; padding-right: 2px; border-radius: 6px; font-size: 13px; color: var(--txt-2); }
+.org-col:hover { background: var(--fill); }
+.org-col[data-on='true'] { color: var(--txt); }
+.org-col .grow { min-width: 0; }
+.org-col .fixed { display: inline-grid; place-items: center; width: 26px; height: 26px; color: var(--txt-3); }
+.org-cols hr { border: none; border-top: 1px solid var(--line); margin: 6px 0; }
+.org-cols .switch { padding: 0 4px; }
+
+/* ---------------- settings sections ---------------- */
+
+.org-list { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden; }
+.org-item { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 4px 8px 4px 12px; border-bottom: 1px solid var(--line); }
+.org-item:last-child { border-bottom: none; }
+.org-item .input.name { flex: 1; min-width: 120px; max-width: 280px; height: 30px; border-color: transparent; background: transparent; padding-left: 6px; }
+.org-item .input.name:hover, .org-item .input.name:focus { border-color: var(--line-ctl); background: var(--raised); }
+.org-item .count { flex: none; min-width: 70px; font-size: 12px; color: var(--txt-3); text-align: right; }
+.org-item .icon-btn { flex: none; }
+.org-color { width: 26px; height: 26px; padding: 0; border: none; border-radius: 99px; background: none; cursor: pointer; flex: none; }
+.org-color::-webkit-color-swatch-wrapper { padding: 0; }
+.org-color::-webkit-color-swatch { border: none; border-radius: 99px; box-shadow: inset 0 0 0 1px var(--line-ctl); }
+.org-add { display: flex; align-items: center; gap: 8px; }
+.org-add .input { max-width: 280px; }
+.org-empty { padding: 18px 12px; text-align: center; color: var(--txt-3); font-size: 12.5px; }

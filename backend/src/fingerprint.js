@@ -52,14 +52,16 @@ function decodeUserAgentData(b64) {
   }
 }
 
+// The proxy EXIT's geo, asked through the proxy: the gateway host can sit elsewhere, and looking
+// it up from this machine would tell the geo service which proxy you use.
 async function lookupProxyGeo(proxy) {
   if (!proxy?.host) return null;
   try {
-    const res = await fetch(
-      `http://ip-api.com/json/${proxy.host}?fields=status,timezone,countryCode,lat,lon`,
-      { signal: AbortSignal.timeout(2500) },
-    );
-    const data = await res.json();
+    const { fetchVia } = require("./tunnel");
+    const res = await fetchVia({ ...proxy, scheme: proxy.scheme || "http" }, "http://ip-api.com/json?fields=status,timezone,countryCode,lat,lon", {
+      timeoutMs: 5000,
+    });
+    const data = JSON.parse(res.body);
     if (data.status === "success" && data.timezone) return data;
   } catch {
     // offline or rate-limited

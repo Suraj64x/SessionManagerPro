@@ -1,0 +1,32 @@
+/* Window control and broadcast. Tokens only. */
+
+/* "Tile" carries a two-line hint in the Arrange menu. */
+.menu button.win-two { height: auto; min-height: var(--h); padding-block: 6px; align-items: flex-start; }
+.menu button.win-two > svg { margin-top: 3px; flex: none; }
+.menu button.win-two > span { display: flex; flex-direction: column; gap: 2px; }
+.menu button.win-two .hint { width: 230px; font-size: 11.5px; line-height: 1.35; white-space: normal; }
+
+.win-num { font-variant-numeric: tabular-nums; }
+.win-short { max-width: 200px; }
+.win-random-hint { align-self: flex-end; padding-bottom: 8px; }
+.modal-foot .win-why { margin-right: auto; align-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* One line per profile: names beside the textarea, row for row, scrolled together. */
+.win-lines { display: grid; grid-template-columns: minmax(0, 190px) minmax(0, 1fr); gap: 8px; }
+.win-lines textarea.input,
+.win-names { height: calc(var(--rows) * 20px + 20px); }
+.win-lines textarea.input { line-height: 20px; white-space: pre; overflow: auto; resize: none; }
+.win-names { overflow: hidden; padding: 10px 0; }
+.win-names > div { display: flex; align-items: center; gap: 6px; height: 20px; font-size: 12px; color: var(--txt); }
+.win-names > div.win-missing { color: var(--txt-3); }
+.win-names span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.win-results { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.win-results ul { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.win-results li { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 12.5px; }
+.win-results .name { flex: 0 1 auto; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-results .chip.ok { background: var(--accent-soft); color: var(--accent-txt); }
+.win-results .chip.fail { background: var(--danger-soft); color: var(--danger); }
+.win-results .detail { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-3); }
+.win-results .detail.reason { color: var(--danger); }
+.win-seg { align-self: flex-start; }

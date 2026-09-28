@@ -5,8 +5,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#070a11" />
-    <meta name="description" content="SessionManagerPro - Anti-Detect Chromium Multi-Threaded Orchestrator" />
-    <title>SessionManagerPro — Multi-Threaded Chromium Orchestrator</title>
+    <meta name="description" content="SessionManagerPro — anti-detect browser profile manager" />
+    <title>SessionManagerPro</title>
+    <script>
+      // Theme before first paint, so a light-theme window never flashes dark.
+      try {
+        var t = JSON.parse(localStorage.getItem('smp.theme')) || 'dark';
+        if (t === 'system') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = t;
+        var z = Number(JSON.parse(localStorage.getItem('smp.zoom')));
+        if (z && z !== 1 && z >= 0.67 && z <= 1.75) { document.documentElement.style.zoom = String(z); document.documentElement.style.setProperty('--z', String(z)); }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

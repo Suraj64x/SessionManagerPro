@@ -1,0 +1,104 @@
+/* ============================================================ API reference */
+
+/* Header: "Base URL [url ⧉]" and "Profile [select]". */
+.api-field { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--txt-3); }
+.api-box {
+  display: inline-flex; align-items: center; gap: 4px; height: var(--h); padding: 0 3px 0 10px;
+  border: 1px solid var(--line-2); border-radius: var(--r); background: var(--fill);
+}
+.api-field select.input { width: auto; max-width: 200px; }
+.api-url { font: 12px var(--mono); color: var(--txt); overflow-wrap: anywhere; user-select: text; }
+.api-note code { font: 11.5px var(--mono); color: var(--txt-2); }
+
+/* Obscura-style: a numbered list of calls, the code card beside it. */
+.api-how { display: grid; grid-template-columns: minmax(240px, 380px) minmax(0, 620px); gap: 32px; align-items: start; }
+.api-how > .api-code { position: sticky; top: 8px; }
+.api-steps { list-style: none; display: flex; flex-direction: column; }
+.api-step {
+  width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 3px 8px; padding: 9px 12px;
+  border-left: 2px solid var(--line); text-align: left; color: var(--txt-3); transition: background var(--t), border-color var(--t);
+}
+.api-step:hover { background: var(--hover); border-left-color: var(--line-2); }
+.api-step[aria-current='true'] { background: var(--fill); border-left-color: var(--txt); }
+.api-step .n { grid-row: span 2; padding-top: 2px; font: 500 11.5px var(--mono); color: var(--txt-3); }
+.api-step .t { font-size: 13.5px; font-weight: 700; color: var(--txt-2); }
+.api-step[aria-current='true'] .t { color: var(--txt); }
+.api-step .p { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.api-step .p code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 11.5px var(--mono); color: var(--txt-3); }
+/* Light theme takes darker inks (>=4.5:1 on the tint). */
+.api-method {
+  --m: var(--txt-3);
+  flex: none; display: inline-grid; place-items: center; height: 17px; padding: 0 6px; border-radius: 4px;
+  background: color-mix(in srgb, var(--m) 14%, transparent); color: var(--m);
+  font: 600 10px var(--mono); letter-spacing: 0.04em;
+}
+.api-method.get { --m: #4ade80; }
+.api-method.post { --m: #60a5fa; }
+.api-method.patch { --m: #fbbf24; }
+.api-method.delete { --m: #f87171; }
+:root[data-theme='light'] .api-method.get { --m: #166534; }
+:root[data-theme='light'] .api-method.post { --m: #1e40af; }
+:root[data-theme='light'] .api-method.patch { --m: #92400e; }
+:root[data-theme='light'] .api-method.delete { --m: #991b1b; }
+
+/* ---------------- code card: dark in dark theme, light in light theme ---------------- */
+.api-code {
+  /* The ink comes from the shared code palette in index.css; only the card is its own. */
+  --code-bg: #060606; --code-line: #1d1d1d; --tab-on: #fafafa; --tab-off: #8a8a8a; --tab-tint: rgba(255, 255, 255, 0.03);
+  background: var(--code-bg); border: 1px solid var(--code-line);
+}
+:root[data-theme='light'] .api-code {
+  --code-bg: #f6f8fa; --code-line: #d0d7de; --tab-on: #1f2328; --tab-off: #656d76; --tab-tint: rgba(0, 0, 0, 0.035);
+}
+.api-code-head { display: flex; align-items: center; height: 46px; padding-right: 6px; border-bottom: 1px solid var(--code-line); }
+.api-tabs { flex: 1; align-self: stretch; display: flex; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.api-tab {
+  flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 0 15px; margin-bottom: -1px;
+  border-bottom: 1.6px solid transparent; color: var(--tab-off); font-size: 13.5px; font-weight: 500;
+  transition: color var(--t), background var(--t), border-color var(--t);
+}
+.api-tab:hover { color: var(--tab-on); }
+.api-tab[aria-selected='true'] { color: var(--tab-on); background: var(--tab-tint); border-bottom-color: var(--tab-on); }
+.api-tab:focus-visible { outline-offset: -3px; }
+/* Brand colours on the chosen tab only. */
+.api-tab img { flex: none; filter: grayscale(1); opacity: 0.5; transition: filter var(--t), opacity var(--t); }
+.api-tab:hover img { opacity: 0.8; }
+.api-tab[aria-selected='true'] img { filter: none; opacity: 1; }
+.api-code .code-block {
+  margin: 0; padding: 20px 24px 22px; border: none; border-radius: 0; background: none;
+  font: 13px/1.78 var(--mono); color: var(--tok-txt); white-space: pre; overflow-x: auto;
+}
+.api-code .code-block:focus-visible { outline-offset: -3px; } /* .tok-* live in index.css */
+
+/* ============================================================ check pages (Settings) */
+
+.api-pages { list-style: none; display: flex; flex-direction: column; }
+.api-pages li { display: flex; align-items: center; gap: 2px; min-height: 36px; padding: 2px 0; border-bottom: 1px solid var(--line); }
+.api-pages li:last-child { border-bottom: none; }
+.api-pages li .api-url { flex: 1; min-width: 0; margin-right: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.api-pages li .n { width: 22px; flex: none; font-size: 11.5px; color: var(--txt-3); }
+.api-add { max-width: 480px; }
+
+@container (max-width: 980px) {
+  .api-how { grid-template-columns: minmax(0, 1fr); }
+  .api-how > .api-code { position: static; order: -1; } /* stacked: the code first */
+}
+
+/* ---------------- leak check ---------------- */
+.lk-intro { margin-top: -2px; }
+.lk-list { display: flex; flex-direction: column; gap: 12px; max-height: calc(var(--vh) - 260px); overflow: auto; }
+.lk-card { border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden; }
+.lk-head { display: flex; align-items: center; gap: 9px; height: 44px; padding: 0 10px 0 12px; border-bottom: 1px solid var(--line); }
+.lk-name { max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.lk-running { display: inline-flex; align-items: center; gap: 6px; color: var(--txt-2); font-size: 12px; font-weight: 600; }
+.lk-error { margin: 10px 12px; }
+.lk-table td { height: 36px; padding: 0 10px; }
+.lk-table td:first-child { padding-left: 14px; }
+.lk-label { width: 150px; color: var(--txt); font-weight: 600; white-space: nowrap; }
+.lk-value { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt); }
+.lk-note { color: var(--txt-3); font-size: 12px; }
+.lk-table tr[data-status='fail'] { background: var(--danger-soft); }
+.lk-table tr[data-status='fail'] .lk-note { color: var(--danger); font-weight: 600; }
+.lk-pass { color: var(--accent-txt); }
+.lk-fail { color: var(--danger); }
+.lk-warn { color: var(--warn); }

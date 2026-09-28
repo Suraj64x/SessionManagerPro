@@ -1,0 +1,92 @@
+/* Home: a row of stat tiles, then a two-column grid of cards. Everything else is index.css. */
+
+.home .alert { align-items: center; }
+/* Counts, uptimes and clock times line up in columns. */
+.tile .v, .tile .s, .home-row .counts, .home-row .when, .live-row .badge, .prob time { font-variant-numeric: tabular-nums; }
+
+/* ---- tiles: a plain card with a solid band of its own colour along the top. A stat at zero
+   keeps a grey band, so the row reads at a glance without tinting the whole tile. */
+.tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.tile {
+  --tone: var(--txt-2);
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; padding: 14px 14px 12px;
+  text-align: left; background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--r-lg);
+  transition: background var(--t), border-color var(--t);
+}
+.tile::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; background: var(--tone); }
+.tile[data-zero='true']::before { background: var(--line-2); }
+.tile:hover { background: var(--hover); border-color: var(--line-ctl); }
+.tile .k { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--txt-3); }
+.tile .k .i { display: grid; place-items: center; color: var(--tone); }
+.tile[data-zero='true'] .k .i { color: var(--txt-3); }
+.tile .v { font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--txt); }
+.tile .v small { font-size: 13px; font-weight: 600; color: var(--txt-3); }
+.tile .s { display: flex; flex-wrap: wrap; gap: 0 8px; font-size: 11.5px; color: var(--txt-3); }
+.t-profiles { --tone: #a78bfa; }
+.t-running { --tone: var(--accent-txt); }
+.t-queued { --tone: #fbbf24; }
+.t-errors { --tone: #f87171; }
+.t-proxies { --tone: #60a5fa; }
+.t-fpts { --tone: #f472b6; }
+.tile.alert { --tone: #f87171; }
+.tile.alert-warn { --tone: #fbbf24; }
+/* Bright inks fail on white; each tone darkens for light theme. */
+:root[data-theme='light'] .t-profiles { --tone: #6d28d9; }
+:root[data-theme='light'] .t-queued, :root[data-theme='light'] .tile.alert-warn { --tone: #92400e; }
+:root[data-theme='light'] .t-errors, :root[data-theme='light'] .tile.alert { --tone: #b91c1c; }
+:root[data-theme='light'] .t-proxies { --tone: #1d4ed8; }
+:root[data-theme='light'] .t-fpts { --tone: #be185d; }
+
+/* ---- cards. Side by side cards share a row's height, and their lists scroll rather than
+   letting one long list stretch the page. */
+.home-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.home-card { display: flex; flex-direction: column; min-width: 0; min-height: 232px; max-height: 460px; }
+.home-card > .home-list { overflow: auto; }
+.home-card > .empty { margin-block: auto; }
+.home-card.wide { grid-column: 1 / -1; }
+.home-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 10px 6px 14px; border-bottom: 1px solid var(--line); }
+.home-head h2 { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+/* Dense: the shared empty state is sized for a whole view. */
+.home-card .empty { padding: 26px 16px; gap: 10px; }
+.home-card .empty p { font-size: 13px; }
+.home-card .empty > svg { color: var(--txt-3); }
+
+.home-list { display: flex; flex-direction: column; padding: 4px 0; }
+
+.live-row, .home-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 14px; border-bottom: 1px solid var(--line); }
+.live-row:last-child, .home-row:last-child { border-bottom: none; }
+.live-row .who { flex: 1; }
+.live-row .sub { max-width: 56ch; }
+
+.home-row { width: 100%; text-align: left; color: var(--txt-2); transition: background var(--t); }
+.home-row:hover { background: var(--hover); }
+.home-row .name { flex: 1; }
+.home-row .counts { display: flex; gap: 8px; font-size: 12px; white-space: nowrap; }
+.home-row .when { flex: none; min-width: 7ch; text-align: right; font-size: 12px; }
+
+.prob-group { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.prob-group:last-child { border-bottom: none; }
+.prob-who { display: flex; align-items: center; gap: 8px; padding: 4px 14px; }
+.prob {
+  width: 100%; display: flex; align-items: baseline; gap: 10px; padding: 3px 14px 3px 12px;
+  border-left: 2px solid transparent; font: 11.5px/1.6 var(--mono); text-align: left; color: var(--txt-2);
+}
+button.prob:hover { background: var(--hover); }
+.prob time { flex: none; color: var(--txt-3); }
+.prob .msg { overflow-wrap: anywhere; }
+.prob.warn { border-left-color: var(--warn); }
+.prob.warn .msg { color: var(--warn); }
+.prob.error { border-left-color: var(--danger); }
+.prob.error .msg { color: var(--danger); }
+
+/* ---- first run */
+.setup .empty { padding: 40px 24px 12px; }
+.steps { list-style: none; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; padding: 0 24px 28px; }
+.steps li { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+.steps .grow { display: flex; flex-direction: column; min-width: 0; }
+.step-n { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 99px; background: var(--fill-2); color: var(--txt-2); font-size: 12px; font-weight: 700; }
+.steps li.done .step-n { background: var(--accent-soft); color: var(--accent-txt); }
+
+@container (max-width: 1200px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (max-width: 1024px) { .home-grid { grid-template-columns: 1fr; } }

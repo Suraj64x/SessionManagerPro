@@ -1,0 +1,42 @@
+/* Profile drawer "History" tab: stat tiles, a filtered event list, cookie snapshots. */
+
+.hist-tiles .v, .hist-events time, .hist-snaps .when, .hist-filter .n { font-variant-numeric: tabular-nums; }
+
+.hist-loading { display: flex; align-items: center; gap: 6px; }
+
+/* ---- tiles: 2×2, the drawer is too narrow for four across */
+.hist-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.hist-tile {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px;
+  background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--r-lg);
+}
+.hist-tile .k { font-size: 12px; color: var(--txt-3); }
+.hist-tile .v { font-size: 18px; font-weight: 700; line-height: 1.25; color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-tile .v.ip { font-family: var(--mono); font-size: 14px; line-height: 1.6; }
+.hist-tile .s { font-size: 11.5px; color: var(--txt-3); }
+
+/* ---- filter + events */
+.hist-filter { align-self: flex-start; max-width: 100%; overflow-x: auto; }
+.hist-filter button { white-space: nowrap; }
+.hist-events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hist-events li { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.hist-events li:last-child { border-bottom: 0; }
+.hist-events .ico { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--fill); color: var(--txt-3); }
+.hist-events .d { flex: 1; min-width: 0; color: var(--txt-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-events time { flex: none; font-size: 12px; color: var(--txt-3); }
+.hist-events li.err .d, .hist-events li.err .ico { color: var(--danger); }
+.hist-events li.err .ico { background: var(--danger-soft); }
+.hist-events + .pager { margin-top: 4px; }
+
+/* ---- snapshots */
+.hist-snaps { display: flex; flex-direction: column; }
+.hist-snaps-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.hist-snaps-head h3 { font-size: 13px; font-weight: 700; }
+.hist-snaps .hist-loading { padding: 14px; }
+.hist-snaps .empty { padding: 28px 16px; }
+.hist-snaps ul { list-style: none; margin: 0; padding: 0; }
+.hist-snaps li { display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 14px; }
+.hist-snaps li + li { border-top: 1px solid var(--line); }
+.hist-snaps .when { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+.hist-snaps .when .hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-snaps a.btn { text-decoration: none; }

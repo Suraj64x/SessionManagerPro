@@ -98,19 +98,24 @@ export const ConsoleDock: React.FC<{
 
   return (
     <section
-      className={`dock${open ? ' open' : ''}`}
-      style={open ? { height: size === 'tall' ? '55vh' : 260 } : undefined}
+      className="dock"
+      style={open ? { height: size === 'tall' ? 'calc(var(--vh) * 0.55)' : 260 } : undefined}
       aria-label="Event log"
     >
       <div className="dock-head">
         <button
           className="dock-title"
-          onClick={() => onSize(open ? 'closed' : 'normal')}
+          onClick={() => {
+            if (!open) return onSize('normal');
+            onSize('closed');
+            // This button unmounts with the dock; hand focus to the rail's Log toggle.
+            requestAnimationFrame(() => document.querySelector<HTMLElement>('.rail button[aria-pressed]')?.focus());
+          }}
           aria-expanded={open}
         >
           <Terminal size={14} strokeWidth={1.75} />
           Log
-          <span className="count">{rows.length}</span>
+          <span className="badge">{rows.length}</span>
           {open ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </button>
 
@@ -121,7 +126,7 @@ export const ConsoleDock: React.FC<{
           </span>
         )}
 
-        <span className="topbar-sep" />
+        <span className="grow" />
 
         {open && (
           <>
@@ -155,6 +160,7 @@ export const ConsoleDock: React.FC<{
             </button>
             <button
               className={`icon-btn${stick ? ' on' : ''}`}
+              aria-pressed={stick}
               onClick={() => setStick((s) => !s)}
               aria-label="Follow newest"
               data-tip="Follow"

@@ -1,54 +1,36 @@
-import React, { useEffect } from 'react';
-import { Keyboard, X } from 'lucide-react';
+import React from 'react';
+import { Modal } from '../ui';
 
-const SHORTCUTS = [
-  { keys: ['/'], label: 'Focus search' },
-  { keys: ['Ctrl', 'K'], label: 'Focus search' },
-  { keys: ['Ctrl', 'Enter'], label: 'Launch selected profiles' },
-  { keys: ['Ctrl', 'A'], label: 'Select all visible' },
-  { keys: ['Delete'], label: 'Delete selected' },
-  { keys: ['Escape'], label: 'Deselect all / Close' },
-  { keys: ['?'], label: 'Toggle this panel' },
+/** Single source of truth: the helper overlay and Settings both render this list. */
+export const SHORTCUTS: Array<{ keys: string[]; label: string }> = [
+  { keys: ['Shift', '1…7'], label: 'Switch section' },
+  { keys: ['/'], label: 'Search' },
+  { keys: ['Ctrl', 'K'], label: 'Search' },
+  { keys: ['Ctrl', 'A'], label: 'Select all shown profiles' },
+  { keys: ['Ctrl', 'Enter'], label: 'Launch selected · run script in editor' },
+  { keys: ['Ctrl', 'S'], label: 'Save script' },
+  { keys: ['Delete'], label: 'Move selected to trash' },
+  { keys: ['Esc'], label: 'Clear selection · close panel' },
+  { keys: ['?'], label: 'Show shortcuts' },
 ];
 
-export const ShortcutHelper: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === '?') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
-
-  return (
-    <div className="shortcuts-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="shortcuts-card">
-        <div className="shortcuts-head">
-          <Keyboard size={16} strokeWidth={1.75} />
-          <h2>Keyboard Shortcuts</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            <X size={15} />
-          </button>
-        </div>
-        <div className="shortcuts-body">
-          {SHORTCUTS.map((s) => (
-            <div key={s.label + s.keys.join()} className="shortcut-row">
-              <span>{s.label}</span>
-              <div className="shortcut-keys">
-                {s.keys.map((k) => (
-                  <kbd key={k} className="kbd">
-                    {k}
-                  </kbd>
-                ))}
-              </div>
-            </div>
+export const ShortcutList: React.FC = () => (
+  <div className="keys">
+    {SHORTCUTS.map((s) => (
+      <React.Fragment key={s.label + s.keys.join()}>
+        <span className="inline" style={{ gap: 4 }}>
+          {s.keys.map((k) => (
+            <kbd key={k}>{k}</kbd>
           ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+        </span>
+        <span>{s.label}</span>
+      </React.Fragment>
+    ))}
+  </div>
+);
+
+export const ShortcutHelper: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+  <Modal title="Keyboard shortcuts" width={400} onClose={onClose}>
+    <ShortcutList />
+  </Modal>
+);

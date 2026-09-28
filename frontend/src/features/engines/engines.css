@@ -1,0 +1,42 @@
+/* Settings → Browsers */
+.eng { display: flex; flex-direction: column; gap: 12px; }
+.eng-list { list-style: none; display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden; }
+.eng-row { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.eng-row:last-child { border-bottom: none; }
+.eng-row[data-installed='false'] { opacity: 0.6; }
+.eng-mark {
+  flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; color: var(--txt);
+}
+/* Small: beside a profile's name in the table. */
+.eng-mark.sm { width: 15px; height: 15px; border-radius: 5px; font-size: 9.5px; font-weight: 800; flex: none; margin-left: 6px; vertical-align: 1px; }
+.eng-mark.firefox { background: color-mix(in srgb, #f97316 22%, transparent); color: color-mix(in srgb, #f97316 70%, var(--txt)); }
+.eng-mark.chromium { background: color-mix(in srgb, #3b82f6 22%, transparent); color: color-mix(in srgb, #3b82f6 70%, var(--txt)); }
+.eng-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.eng-title { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.eng-title b { font-weight: 700; color: var(--txt); }
+.eng-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-3); font-size: 11.5px; }
+.eng-kind.stealth { background: var(--accent-soft); color: var(--accent-txt); }
+.eng-kind.firefox-manual { background: var(--warn-soft); color: var(--warn); }
+.eng-mark.unknown { background: var(--fill-2); color: var(--txt-3); }
+.eng-missing { background: var(--danger-soft); color: var(--danger); }
+.eng-limited { background: var(--warn-soft); color: var(--warn); }
+.eng-note { color: var(--warn); font-size: 11.5px; line-height: 1.4; }
+.eng-default { background: var(--fill-2); color: var(--txt); }
+.eng-default svg { color: var(--warn); }
+.eng-usage { font-size: 12px; white-space: nowrap; }
+.eng-add { display: flex; align-items: center; gap: 8px; }
+.eng-add .grow { min-width: 0; }
+.eng-name { width: 170px; flex: none; }
+.eng-warn { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); }
+
+/* Bulk bar: the Browser… menu */
+.eng-menu { min-width: 220px; }
+.eng-menu button { height: 32px; gap: 8px; }
+.eng-menu .eng-cell { flex: 1; color: var(--txt); }
+
+/* Profiles table: the Browser column */
+.eng-cell { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--txt-2); font-weight: 600; font-size: 12.5px; }
+.eng-cell::before { content: ''; width: 7px; height: 7px; border-radius: 99px; background: var(--txt-3); }
+.eng-cell.firefox::before { background: #f97316; }
+.eng-cell.chromium::before { background: #3b82f6; }

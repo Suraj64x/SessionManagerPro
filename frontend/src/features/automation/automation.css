@@ -1,0 +1,40 @@
+/* Automation: warm-up dialog, schedules, runs. Tokens only; loads after index.css. */
+
+.aut-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; align-items: start; }
+.aut-sub { padding: 12px; border-radius: var(--r); background: var(--fill); }
+.aut-wrap { flex-wrap: wrap; }
+/* Controls in a form row keep their own width instead of stretching. */
+.aut-row > .seg, .aut-row > .stepper { align-self: flex-start; }
+.aut-sites { min-height: 120px; font-size: 12px; white-space: pre; }
+.aut-dwell .input.num, .aut-wrap .input.num { width: 76px; font-variant-numeric: tabular-nums; }
+.aut-kind { width: auto; min-width: 150px; }
+.aut-time { width: 110px; }
+.aut-datetime { width: 220px; }
+.aut-foot { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.aut-note { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--txt-3); }
+.aut-loading { display: flex; align-items: center; gap: 8px; padding: 24px 0; }
+.aut-ellipsis { max-width: 52ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Schedules */
+.aut-sched td { font-variant-numeric: tabular-nums; }
+.aut-sched tr[data-off] td:not(:first-child):not(:last-child) { opacity: 0.55; }
+.aut-sched .aut-missing { color: var(--danger); }
+.aut-last { display: inline-flex; align-items: center; gap: 8px; }
+
+/* Runs */
+.aut-runs { display: flex; flex-direction: column; gap: 8px; }
+.aut-run { overflow: hidden; }
+.aut-run-head { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 12px 6px 6px; flex-wrap: wrap; }
+.aut-run-toggle { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: var(--r); text-align: left; }
+.aut-run-toggle:hover { background: var(--hover); }
+.aut-run-name { min-width: 0; }
+.aut-chev { flex: none; color: var(--txt-3); transition: transform var(--t); }
+.aut-run-toggle[aria-expanded='true'] .aut-chev { transform: rotate(90deg); }
+.aut-counts { display: inline-flex; gap: 4px; font-variant-numeric: tabular-nums; }
+.aut-when, .aut-run .mono { font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+.aut-run-actions { display: inline-flex; gap: 6px; min-width: 0; }
+.aut-run-actions:empty { display: none; }
+
+/* The Library's lock mark sits where the mode label does. */
+.script-item .mode svg { display: block; }

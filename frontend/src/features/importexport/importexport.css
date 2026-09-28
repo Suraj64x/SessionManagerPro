@@ -1,0 +1,90 @@
+/* Import wizard, cookie-file and .smp import, export. */
+
+.ie-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ie-min { min-width: 0; }
+.num-inline { font-variant-numeric: tabular-nums; }
+
+/* Steps: current is ink, done is accent, ahead is quiet. */
+.ie-steps { list-style: none; display: flex; gap: 18px; padding: 0; margin: 0; font-size: 12.5px; color: var(--txt-3); }
+.ie-steps li { display: inline-flex; align-items: center; gap: 7px; }
+.ie-steps .n {
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 99px;
+  border: 1px solid var(--line-2); font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.ie-steps li[aria-current='step'] { color: var(--txt); }
+.ie-steps li[aria-current='step'] .n { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.ie-steps li[data-done] .n { border-color: var(--accent-line); color: var(--accent-txt); }
+
+.ie-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 28px 16px;
+  border: 1px dashed var(--line-ctl); border-radius: var(--r-lg); background: var(--fill);
+  color: var(--txt-2); font-size: 13px; transition: background var(--t), border-color var(--t);
+}
+.ie-drop:hover, .ie-drop[data-over] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--txt); }
+.ie-drop svg { color: var(--txt-3); }
+.ie-drop[data-over] svg, .ie-drop:hover svg { color: var(--accent-txt); }
+
+.ie-file { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: var(--r); min-width: 0; }
+.ie-file > svg { flex: none; color: var(--txt-3); }
+
+.ie-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.ie-start .input { width: 76px; }
+
+/* Raw preview and review tables stay inside the modal and scroll. */
+.ie-raw .table-scroll { max-height: 220px; }
+.ie-raw .tbl td { height: 34px; max-width: 180px; font-size: 12px; }
+.ie-raw tr[data-head] td { color: var(--txt); font-weight: 600; background: var(--fill); }
+
+.ie-map { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--r-lg); }
+.ie-map-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; }
+.ie-map-row + .ie-map-row { border-top: 1px solid var(--line); }
+.ie-map-row[data-ignored] .ie-map-name b { color: var(--txt-3); font-weight: 600; }
+.ie-map-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ie-map-name b { font-size: 13px; font-weight: 600; color: var(--txt); }
+.ie-map-row select.input { flex: none; width: 170px; }
+
+.ie-review .table-scroll { max-height: min(calc(var(--vh) * 0.46), 420px); }
+.ie-review .tbl th, .ie-review .tbl td { padding: 0 6px; }
+.ie-review .tbl td { height: auto; padding-top: 5px; padding-bottom: 5px; vertical-align: top; }
+.ie-review .tbl td.num, .ie-review .tbl td.tight { padding-top: 10px; }
+.ie-review .input { height: var(--h-xs); min-width: 110px; width: 100%; font-size: 12.5px; }
+.ie-review .ie-cell-proxy .input, .ie-review .ie-cell-startUrl .input { min-width: 170px; }
+.ie-review .ie-cell-notes .input { min-width: 150px; }
+.ie-review .ie-cell-cookies { padding-top: 8px; }
+.ie-review .input[aria-invalid='true'] { border-color: var(--danger); }
+.tbl tbody tr[data-invalid] { background: color-mix(in srgb, var(--danger) 5%, transparent); }
+.ie-err { display: block; margin-top: 3px; font-size: 11.5px; color: var(--danger); white-space: normal; }
+
+.ie-list .table-scroll { max-height: 300px; }
+.ie-list .tbl td { height: 46px; }
+.ie-list td:first-child { max-width: 320px; }
+
+.ie-files { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: var(--r-lg); max-height: 320px; overflow-y: auto; }
+.ie-files li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 13px; min-width: 0; }
+.ie-files li + li { border-top: 1px solid var(--line); }
+.ie-files li > svg { flex: none; color: var(--txt-3); }
+.ie-files li[data-state='error'] > svg { color: var(--danger); }
+.ie-files li[data-state='done'] > svg { color: var(--accent-txt); }
+.ie-files .hint { flex: none; }
+
+.ie-switch { align-items: flex-start; }
+.ie-switch > span { display: flex; flex-direction: column; gap: 2px; color: var(--txt); }
+.ie-switch input { margin-top: 1px; }
+
+.alert.ie-warn { background: var(--warn-soft); color: var(--warn); }
+
+.ie-skips { display: flex; flex-direction: column; gap: 8px; }
+.ie-skips .row-label { display: inline-flex; align-items: center; gap: 6px; color: var(--danger); }
+.ie-skips ul { list-style: none; padding: 0; margin: 0; max-height: 280px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: var(--r); }
+.ie-skips li { display: flex; gap: 10px; padding: 7px 10px; font-size: 12.5px; }
+.ie-skips li + li { border-top: 1px solid var(--line); }
+.ie-skips li b { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--txt); }
+.ie-skips li span { color: var(--txt-2); min-width: 0; overflow-wrap: anywhere; }
+
+/* Back sits on the left of the footer, the flow buttons on the right. */
+.modal-foot .ie-back { margin-right: auto; }
+
+@container (max-width: 640px) {
+  .ie-map-row { flex-direction: column; align-items: stretch; }
+  .ie-map-row select.input { width: 100%; }
+}

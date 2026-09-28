@@ -1,6 +1,6 @@
 {
   "name": "session-manager-backend",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "SessionManagerPro backend server and session orchestration engine",
   "main": "src/manager.js",
@@ -13,11 +13,8 @@
     "@inquirer/prompts": "^7.10.1",
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.5",
-    "cors": "^2.8.5",
     "express": "^4.19.2",
-    "ghost-cursor": "^1.4.1",
     "ora": "^5.4.1",
-    "puppeteer-real-browser": "^1.4.4",
     "ws": "^8.18.0"
   }
 }

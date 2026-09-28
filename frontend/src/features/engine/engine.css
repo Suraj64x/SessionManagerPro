@@ -1,0 +1,12 @@
+/* Engine banner and Settings section. Loads after index.css. */
+
+/* A notice, not an alarm: .banner defaults to the danger colours. */
+.banner.engine-banner { background: var(--fill); color: var(--txt-2); font-size: 13px; min-width: 0; }
+.engine-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.engine-state { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.engine-actions { flex: none; }
+
+/* Long paths wrap (.kv dd) rather than hide; the copy button stays beside them. */
+.engine-path { display: flex; align-items: flex-start; gap: 4px; }
+.engine-path > span { min-width: 0; padding-top: 3px; }

@@ -1,6 +1,10 @@
 node_modules/
 frontend/node_modules/
 *.tmp
+.venv/
+venv/
+__pycache__/
+*.pyc
 
 # session data — keep folder names, not profiles / cookies / store
 /data/*
@@ -23,3 +27,10 @@ frontend/node_modules/
 !/resources/proxies/.gitkeep
 /resources/fpts/*
 !/resources/fpts/.gitkeep
+
+# packaging output (npm run stage / build:setup)
+/build/
+/release/
+
+# throwaway bundle of launcher + node_modules (76 MB) — never commit
+/launcher.zip

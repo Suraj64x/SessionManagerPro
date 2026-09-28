@@ -70,12 +70,12 @@ function sessionTable(rows) {
       mint.bold("Name"),
       mint.bold("Result"),
       ink.bold("Proxy"),
-      ink.bold("Chrome"),
+      ink.bold("Engine"),
       mute("Reason"),
     ],
     style: { head: [], border: ["gray"] },
     wordWrap: true,
-    colWidths: [34, 10, 24, 8, 36],
+    colWidths: [34, 10, 24, 16, 36],
   });
   for (const s of rows) {
     const result = s.lastResult?.status;
@@ -90,7 +90,7 @@ function sessionTable(rows) {
       chalk.white.bold(s.email || s.id),
       resultCell,
       chalk.yellow(proxyLabel(s.proxy)),
-      chalk.magenta(s.fingerprint.chromeVersion.split(".")[0]),
+      chalk.magenta("Firefox Stealth"),
       chalk.dim(s.lastResult?.reason || "—"),
     ]);
   }
@@ -117,18 +117,18 @@ function watchHandle(handle) {
   const flag = (why) => {
     if (!handle.error) handle.error = why;
   };
-  handle.page?.on("error", (err) => flag(err.message || "page crashed"));
-  handle.page?.on("close", () => {});
-  const proc = handle.browser.process?.();
+  handle.on?.("error", (err) => flag(err.message || String(err)));
+  const proc = handle.process || (typeof handle.browser?.process === "function" ? handle.browser.process() : null);
   if (proc) {
     proc.on("exit", (code, signal) => {
-      if (code && code !== 0) flag(`Chrome exit code ${code}${signal ? ` ${signal}` : ""}`);
+      if (code && code !== 0) flag(`Worker exit code ${code}${signal ? ` ${signal}` : ""}`);
     });
   }
-  handle.browser.once("disconnected", () => {
+  const emitter = typeof handle.once === "function" ? handle : handle.browser;
+  emitter.once("disconnected", (reasonMsg) => {
     live.delete(handle.id);
     let status, reason;
-    if (handle.closedByUser) {
+    if (handle.closedByUser || reasonMsg === "closed by user" || reasonMsg === "browser closed") {
       status = "success";
       reason = "closed by user";
     } else if (handle.error) {
@@ -136,7 +136,7 @@ function watchHandle(handle) {
       reason = handle.error;
     } else {
       status = "success";
-      reason = "finished / auto closed";
+      reason = reasonMsg || "finished / auto closed";
     }
     markResult(handle.id, status, reason);
     logUpdate(handle.id, status, reason);
@@ -193,7 +193,7 @@ async function launch(names) {
   const { number, input } = await prompts();
   threadLimit = await number({
     message: mint("Thread count") + dim("  (max open at once)"),
-    default: Math.min(names.length, threadLimit, 5),
+    default: Math.min(names.length, threadLimit),
     min: 1,
     max: Math.max(names.length, 1),
     required: true,
